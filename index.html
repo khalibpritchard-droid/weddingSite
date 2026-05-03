@@ -971,6 +971,68 @@ footer::before {
 .footer-divider { width: 40px; height: 1px; background: var(--gold); margin: 0 auto 1.5rem; opacity: 0.5; }
 .footer-note { font-family: var(--ff-serif); font-size: 0.85rem; color: var(--beige); opacity: 0.5; font-style: italic; }
 
+
+
+/* ─── DYNAMIC REGISTRY STATES ─────────────────────────────── */
+.registry-loading,
+.registry-empty {
+  flex: 0 0 100%;
+  background: var(--white);
+  border-radius: 4px;
+  padding: 2rem;
+  text-align: center;
+  font-family: var(--ff-serif);
+  color: var(--brown-md);
+  font-style: italic;
+  box-shadow: 0 2px 16px rgba(58,44,34,0.06);
+}
+.registry-pill {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  z-index: 3;
+  background: rgba(250,246,239,0.92);
+  color: var(--brown-md);
+  border: 1px solid rgba(181,154,106,0.45);
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  font-family: var(--ff-sans);
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.registry-card-zola .registry-card-img-placeholder,
+.modal-item-zola .modal-item-img {
+  background: radial-gradient(circle at 35% 25%, #fff 0%, var(--linen) 36%, var(--sage-lt) 100%);
+}
+.registry-card-purchased {
+  opacity: 0.58;
+}
+.registry-card-purchased::after {
+  content: 'Purchased';
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  z-index: 3;
+  background: var(--brown);
+  color: var(--cream);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-family: var(--ff-sans);
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.registry-note {
+  max-width: 640px;
+  margin: -0.5rem auto 2rem;
+  font-family: var(--ff-serif);
+  font-size: 1rem;
+  color: var(--brown-md);
+  font-style: italic;
+  line-height: 1.8;
+}
+
 /* ─── RESPONSIVE ──────────────────────────────────────────── */
 @media (max-width: 768px) {
   nav { gap: 1.2rem; padding: 1rem 1.5rem; }
@@ -1307,79 +1369,11 @@ footer::before {
     <div class="section-divider reveal reveal-delay-2"></div>
 
     <div class="registry-carousel-wrap reveal reveal-delay-3">
+      <p class="registry-note reveal reveal-delay-2">
+        Browse a few of our favorite gifts below. Our honeymoon and future home fund is handled securely through Zola.
+      </p>
       <div class="registry-carousel" id="registry-carousel">
-        <!--
-          🎁 TODO — REGISTRY ITEMS:
-          Each .registry-card below is one item in the carousel.
-          To add your real items:
-          1. Fill in data-url="YOUR ITEM LINK" on each card (the full URL to purchase that item)
-          2. Replace the emoji in .registry-card-img-placeholder with an <img> tag, e.g.:
-             <img src="https://your-image-url.com/item.jpg" alt="Item name" />
-          3. Update store, name, and price text.
-          4. Duplicate or remove cards as needed — the carousel handles any number.
-
-          For a registry hosted on Zola, The Knot, Amazon, etc., you can link directly to
-          each individual item page for the best experience.
-        -->
-        <div class="registry-card" data-url="https://www.example.com/registry-item-1">
-          <a class="registry-card-link-overlay" href="https://www.example.com/registry-item-1" target="_blank" rel="noopener" aria-label="View item"></a>
-          <div class="registry-card-img-placeholder">🫖</div>
-          <div class="registry-card-body">
-            <p class="registry-card-store">Williams Sonoma</p>
-            <p class="registry-card-name">Le Creuset Dutch Oven — Artichaut</p>
-            <p class="registry-card-price">$420</p>
-          </div>
-        </div>
-
-        <div class="registry-card" data-url="https://www.example.com/registry-item-2">
-          <a class="registry-card-link-overlay" href="https://www.example.com/registry-item-2" target="_blank" rel="noopener" aria-label="View item"></a>
-          <div class="registry-card-img-placeholder">🛏️</div>
-          <div class="registry-card-body">
-            <p class="registry-card-store">Parachute Home</p>
-            <p class="registry-card-name">Linen Sheet Set — Sage, Queen</p>
-            <p class="registry-card-price">$259</p>
-          </div>
-        </div>
-
-        <div class="registry-card" data-url="https://www.example.com/registry-item-3">
-          <a class="registry-card-link-overlay" href="https://www.example.com/registry-item-3" target="_blank" rel="noopener" aria-label="View item"></a>
-          <div class="registry-card-img-placeholder">🍷</div>
-          <div class="registry-card-body">
-            <p class="registry-card-store">Crate &amp; Barrel</p>
-            <p class="registry-card-name">Riedel Winewings Cabernet Glasses, Set of 4</p>
-            <p class="registry-card-price">$129</p>
-          </div>
-        </div>
-
-        <div class="registry-card" data-url="https://www.example.com/registry-item-4">
-          <a class="registry-card-link-overlay" href="https://www.example.com/registry-item-4" target="_blank" rel="noopener" aria-label="View item"></a>
-          <div class="registry-card-img-placeholder">☕</div>
-          <div class="registry-card-body">
-            <p class="registry-card-store">Williams Sonoma</p>
-            <p class="registry-card-name">Breville Barista Express Espresso Machine</p>
-            <p class="registry-card-price">$699</p>
-          </div>
-        </div>
-
-        <div class="registry-card" data-url="https://www.example.com/registry-item-5">
-          <a class="registry-card-link-overlay" href="https://www.example.com/registry-item-5" target="_blank" rel="noopener" aria-label="View item"></a>
-          <div class="registry-card-img-placeholder">🕯️</div>
-          <div class="registry-card-body">
-            <p class="registry-card-store">Anthropologie</p>
-            <p class="registry-card-name">Capri Blue Volcano Candle, Large</p>
-            <p class="registry-card-price">$36</p>
-          </div>
-        </div>
-
-        <div class="registry-card" data-url="https://www.example.com/registry-item-6">
-          <a class="registry-card-link-overlay" href="https://www.example.com/registry-item-6" target="_blank" rel="noopener" aria-label="View item"></a>
-          <div class="registry-card-img-placeholder">🎨</div>
-          <div class="registry-card-body">
-            <p class="registry-card-store">Etsy</p>
-            <p class="registry-card-name">Custom Watercolor Portrait — 16×20"</p>
-            <p class="registry-card-price">$185</p>
-          </div>
-        </div>
+        <div class="registry-loading">Loading registry gifts…</div>
       </div>
     </div>
 
@@ -1400,7 +1394,7 @@ footer::before {
         items from this page; the button below links to the full external registry.
         Example: href="https://www.zola.com/registry/khalibandzoe"
       -->
-      <a class="registry-btn-primary" href="https://www.example.com/full-registry" target="_blank" rel="noopener">Shop Registry</a>
+      <a class="registry-btn-primary" href="https://www.zola.com/registry/khalibandzoe" target="_blank" rel="noopener">Visit Zola Registry</a>
     </div>
   </section>
 
@@ -1499,7 +1493,7 @@ footer::before {
     </div>
     <div class="modal-body">
       <div class="modal-grid" id="modal-grid">
-        <!-- Populated by JS from REGISTRY_ITEMS -->
+        <!-- Populated dynamically from Google Sheets -->
       </div>
     </div>
     <div class="modal-footer">
@@ -1507,7 +1501,7 @@ footer::before {
         🎁 TODO — MODAL FULL REGISTRY BUTTON:
         Same as above — replace with your actual registry URL.
       -->
-      <a class="registry-btn-primary" href="https://www.example.com/full-registry" target="_blank" rel="noopener">View Complete Registry ↗</a>
+      <a class="registry-btn-primary" href="https://www.zola.com/registry/khalibandzoe" target="_blank" rel="noopener">View Zola Registry ↗</a>
     </div>
   </div>
 </div>
@@ -1517,36 +1511,21 @@ footer::before {
 ═══════════════════════════════════════════════════════════════ -->
 <script>
 /* ══════════════════════════════════════════════════════════════
-   REGISTRY DATA
+   DYNAMIC REGISTRY DATA — GOOGLE SHEETS + ZOLA
    ══════════════════════════════════════════════════════════════
-   🎁 TODO — ADD / EDIT REGISTRY ITEMS:
-   This is the single source of truth for all registry items.
-   Both the carousel and the "View All" modal pull from this array.
+   Google Sheet headers expected:
+   item_url | name | image | price | store | status | buyer | notes
 
-   To add a real item:
-   - emoji:    a placeholder shown if no image is provided (swap for an img src below)
-   - img:      (optional) URL to the item image (leave "" to use emoji placeholder)
-   - store:    retailer name
-   - name:     product name
-   - price:    display price string
-   - url:      direct link to purchase the item
-
-   Example with real image:
-   { emoji:"", img:"https://images.example.com/dutch-oven.jpg",
-     store:"Williams Sonoma", name:"Le Creuset Dutch Oven", price:"$420",
-     url:"https://www.williams-sonoma.com/products/le-creuset-dutch-oven" }
+   - Add new items directly to the Google Sheet.
+   - Set status to "available" to show an item.
+   - Set status to "purchased" to hide it from the public list.
+   - Use the image column for a direct image URL.
    ══════════════════════════════════════════════════════════════ */
-const REGISTRY_ITEMS = [
-  { emoji:"🫖", img:"", store:"Williams Sonoma",  name:"Le Creuset Dutch Oven — Artichaut",                 price:"$420", url:"https://www.example.com/registry-item-1" },
-  { emoji:"🛏️", img:"", store:"Parachute Home",    name:"Linen Sheet Set — Sage, Queen",                     price:"$259", url:"https://www.example.com/registry-item-2" },
-  { emoji:"🍷", img:"", store:"Crate & Barrel",    name:"Riedel Winewings Cabernet Glasses, Set of 4",       price:"$129", url:"https://www.example.com/registry-item-3" },
-  { emoji:"☕", img:"", store:"Williams Sonoma",   name:"Breville Barista Express Espresso Machine",          price:"$699", url:"https://www.example.com/registry-item-4" },
-  { emoji:"🕯️", img:"", store:"Anthropologie",     name:"Capri Blue Volcano Candle, Large",                   price:"$36",  url:"https://www.example.com/registry-item-5" },
-  { emoji:"🎨", img:"", store:"Etsy",              name:"Custom Watercolor Portrait — 16×20\"",               price:"$185", url:"https://www.example.com/registry-item-6" },
-  { emoji:"🧺", img:"", store:"Restoration Hardware", name:"Belgian Linen Throw Blanket — Natural",           price:"$149", url:"https://www.example.com/registry-item-7" },
-  { emoji:"🪴", img:"", store:"The Sill",          name:"Large Fiddle Leaf Fig with Pot",                    price:"$195", url:"https://www.example.com/registry-item-8" },
-  { emoji:"🍳", img:"", store:"All-Clad",          name:"Stainless Steel 10-Piece Cookware Set",             price:"$699", url:"https://www.example.com/registry-item-9" },
-];
+const REGISTRY_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8pf6f9dveKyKeqLO1Z-cjCfW3mMxyK7Fq05K0-q9cST-qzBQKzQr-APPtT4LiatFGJni7kzgTgPwh/pub?output=csv';
+const ZOLA_REGISTRY_URL  = 'https://www.zola.com/registry/khalibandzoe';
+
+// This will be filled from the Google Sheet after the page loads.
+let REGISTRY_ITEMS = [];
 
 /* ══════════════════════════════════════════════════════════════
    PASSWORD GATE
@@ -1720,56 +1699,320 @@ document.querySelectorAll('.faq-question').forEach(btn => {
 });
 
 /* ══════════════════════════════════════════════════════════════
-   REGISTRY CAROUSEL
+   REGISTRY — GOOGLE SHEETS LOADER + CAROUSEL + MODAL
    ══════════════════════════════════════════════════════════════ */
-(function initCarousel() {
+function escapeHTML(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let insideQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"' && insideQuotes && next === '"') {
+      cell += '"';
+      i++;
+    } else if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === ',' && !insideQuotes) {
+      row.push(cell);
+      cell = '';
+    } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+      if (char === '\r' && next === '\n') i++;
+      row.push(cell);
+      if (row.some(v => String(v).trim() !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  if (row.some(v => String(v).trim() !== '')) rows.push(row);
+  return rows;
+}
+
+function csvToObjects(csvText) {
+  const rows = parseCSV(csvText);
+  if (!rows.length) return [];
+
+  const headers = rows[0].map(h => String(h).trim().toLowerCase());
+  return rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((header, i) => { obj[header] = (row[i] || '').trim(); });
+    return obj;
+  });
+}
+
+function registryFallbackName(url) {
+  try {
+    const u = new URL(url);
+    const pathPart = u.pathname.split('/').filter(Boolean).pop() || u.hostname;
+    return pathPart
+      .replace(/[-_]+/g, ' ')
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/\b\w/g, c => c.toUpperCase());
+  } catch (_) {
+    return 'Registry Gift';
+  }
+}
+
+function normalizeRegistryItem(raw, index) {
+  const url    = raw.item_url || raw.url || raw.link || raw.product_url || raw.registry_url || '';
+  const name   = raw.name || raw.title || raw.item || raw.product || raw.gift || registryFallbackName(url);
+  const image  = raw.image || raw.img || raw.image_url || raw.photo || raw.thumbnail || '';
+  const price  = raw.price || raw.amount || '';
+  const store  = raw.store || raw.vendor || raw.retailer || raw.site || 'Registry Gift';
+  const status = (raw.status || 'available').toLowerCase().trim();
+  const buyer  = raw.buyer || raw.purchased_by || raw.purchasedby || '';
+  const notes  = raw.notes || raw.note || raw.description || '';
+  const emoji  = raw.emoji || '🎁';
+
+  return { id: index + 1, url, name, image, price, store, status, buyer, notes, emoji };
+}
+
+function zolaFundItem() {
+  return {
+    id: 'zola-fund',
+    url: ZOLA_REGISTRY_URL,
+    name: 'Honeymoon & Future Home Fund',
+    image: '',
+    price: 'Contribute securely through Zola',
+    store: 'Zola',
+    status: 'available',
+    buyer: '',
+    notes: 'Help us celebrate our next chapter — from honeymoon memories to future home dreams.',
+    emoji: '🏡',
+    isZolaFund: true
+  };
+}
+
+function availableRegistryItems() {
+  return REGISTRY_ITEMS.filter(item => item.status !== 'purchased' && item.url);
+}
+
+function registryImageMarkup(item, className = 'registry-card-img-placeholder') {
+  if (item.image) {
+    return `<div class="${className}"><img src="${escapeHTML(item.image)}" alt="${escapeHTML(item.name)}" loading="lazy" /></div>`;
+  }
+  return `<div class="${className}">${escapeHTML(item.emoji || '🎁')}</div>`;
+}
+
+function registryCardMarkup(item) {
+  const zolaClass = item.isZolaFund ? ' registry-card-zola' : '';
+  const purchasedClass = item.status === 'purchased' ? ' registry-card-purchased' : '';
+  return `
+    <div class="registry-card${zolaClass}${purchasedClass}" data-url="${escapeHTML(item.url)}">
+      ${item.isZolaFund ? '<span class="registry-pill">Cash Fund</span>' : ''}
+      <a class="registry-card-link-overlay" href="${escapeHTML(item.url)}" target="_blank" rel="noopener" aria-label="View ${escapeHTML(item.name)}"></a>
+      ${registryImageMarkup(item)}
+      <div class="registry-card-body">
+        <p class="registry-card-store">${escapeHTML(item.store)}</p>
+        <p class="registry-card-name">${escapeHTML(item.name)}</p>
+        <p class="registry-card-price">${escapeHTML(item.price || 'View details')}</p>
+      </div>
+    </div>
+  `;
+}
+
+function modalItemMarkup(item) {
+  const zolaClass = item.isZolaFund ? ' modal-item-zola' : '';
+  return `
+    <div class="modal-item${zolaClass}">
+      <div class="modal-item-img">
+        ${item.image ? `<img src="${escapeHTML(item.image)}" alt="${escapeHTML(item.name)}" loading="lazy" />` : escapeHTML(item.emoji || '🎁')}
+      </div>
+      <div class="modal-item-body">
+        <p class="modal-item-store">${escapeHTML(item.store)}</p>
+        <p class="modal-item-name">${escapeHTML(item.name)}</p>
+        <p class="modal-item-price">${escapeHTML(item.price || 'View details')}</p>
+        ${item.notes ? `<p class="modal-item-price" style="margin-top:-0.35rem;line-height:1.5;">${escapeHTML(item.notes)}</p>` : ''}
+        <a class="modal-item-btn" href="${escapeHTML(item.url)}" target="_blank" rel="noopener">
+          ${item.isZolaFund ? 'Contribute on Zola ↗' : 'View &amp; Purchase ↗'}
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+let registryCarouselCleanup = null;
+
+function renderRegistryCarousel() {
+  const track = document.getElementById('registry-carousel');
+  if (!track) return;
+
+  const items = [zolaFundItem(), ...availableRegistryItems()];
+
+  if (!items.length) {
+    track.innerHTML = '<div class="registry-empty">Registry gifts will appear here soon.</div>';
+    return;
+  }
+
+  track.innerHTML = items.map(registryCardMarkup).join('');
+  initRegistryCarousel();
+}
+
+function googleSheetGvizUrl() {
+  // Uses Google Visualization JSONP instead of fetch() so the registry works from
+  // local previews, GitHub Pages, and GoDaddy without CSV/CORS issues.
+  const base = REGISTRY_SHEET_URL.split('/pub?')[0];
+  return base + '/gviz/tq?tqx=out:json&cacheBust=' + Date.now();
+}
+
+function gvizToObjects(response) {
+  const table = response && response.table;
+  if (!table || !table.cols || !table.rows) return [];
+
+  const headers = table.cols.map(col =>
+    String(col.label || col.id || '').trim().toLowerCase()
+  );
+
+  return table.rows.map(row => {
+    const obj = {};
+    headers.forEach((header, i) => {
+      if (!header) return;
+      const cell = row.c && row.c[i];
+      obj[header] = cell ? String(cell.f ?? cell.v ?? '').trim() : '';
+    });
+    return obj;
+  });
+}
+
+function loadRegistryFromSheet() {
+  const track = document.getElementById('registry-carousel');
+  if (track) track.innerHTML = '<div class="registry-loading">Loading registry gifts…</div>';
+
+  return new Promise((resolve, reject) => {
+    window.google = window.google || {};
+    window.google.visualization = window.google.visualization || {};
+    window.google.visualization.Query = window.google.visualization.Query || {};
+
+    const previousHandler = window.google.visualization.Query.setResponse;
+    const script = document.createElement('script');
+    let finished = false;
+
+    function cleanup() {
+      if (script.parentNode) script.parentNode.removeChild(script);
+      window.google.visualization.Query.setResponse = previousHandler;
+    }
+
+    function fail(err) {
+      if (finished) return;
+      finished = true;
+      cleanup();
+      console.error('Registry loading error:', err);
+      if (track) {
+        track.innerHTML = `
+          <div class="registry-empty">
+            We could not load the live registry right now.<br>
+            <a href="${escapeHTML(ZOLA_REGISTRY_URL)}" target="_blank" rel="noopener" style="color:var(--sage);">Visit our Zola registry ↗</a>
+          </div>`;
+      }
+      reject(err);
+    }
+
+    window.google.visualization.Query.setResponse = function(response) {
+      if (finished) return;
+      finished = true;
+      cleanup();
+
+      try {
+        if (response.status && response.status !== 'ok') {
+          throw new Error(response.errors && response.errors[0] ? response.errors[0].detailed_message : 'Google Sheet response was not ok');
+        }
+
+        REGISTRY_ITEMS = gvizToObjects(response)
+          .map(normalizeRegistryItem)
+          .filter(item => item.url);
+
+        console.log('Loaded registry items:', REGISTRY_ITEMS);
+        renderRegistryCarousel();
+        resolve(REGISTRY_ITEMS);
+      } catch (err) {
+        fail(err);
+      }
+    };
+
+    script.onerror = () => fail(new Error('Could not load Google Sheet script. Make sure the sheet is published to the web.'));
+    script.src = googleSheetGvizUrl();
+    document.head.appendChild(script);
+
+    setTimeout(() => {
+      if (!finished) fail(new Error('Google Sheet timed out.'));
+    }, 10000);
+  });
+}
+
+function initRegistryCarousel() {
+  if (registryCarouselCleanup) registryCarouselCleanup();
+
   const track    = document.getElementById('registry-carousel');
   const dotsWrap = document.getElementById('carousel-dots');
   const btnPrev  = document.getElementById('carousel-prev');
   const btnNext  = document.getElementById('carousel-next');
+  if (!track || !dotsWrap || !btnPrev || !btnNext) return;
 
-  // Determine how many cards are visible at a time
   function visibleCount() {
     if (window.innerWidth <= 480) return 1;
     if (window.innerWidth <= 768) return 2;
     return 3;
   }
 
-  const cards    = Array.from(track.querySelectorAll('.registry-card'));
-  const total    = cards.length;
-  let current    = 0;
+  const cards = Array.from(track.querySelectorAll('.registry-card'));
+  const total = cards.length;
+  let current = 0;
+  let autoTimer = null;
+  let touchStartX = 0;
 
-  // Build dots
+  if (!total) {
+    dotsWrap.innerHTML = '';
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+    return;
+  }
+
   function buildDots() {
     dotsWrap.innerHTML = '';
-    const pages = Math.ceil(total / visibleCount());
+    const pages = Math.max(1, Math.ceil(total / visibleCount()));
     for (let i = 0; i < pages; i++) {
       const dot = document.createElement('button');
       dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
-      dot.setAttribute('aria-label', `Page ${i + 1}`);
+      dot.setAttribute('aria-label', `Registry page ${i + 1}`);
       dot.addEventListener('click', () => goTo(i));
       dotsWrap.appendChild(dot);
     }
   }
 
   function updateUI() {
-    const vc      = visibleCount();
-    const maxPage = Math.ceil(total / vc) - 1;
-    const page    = Math.min(Math.floor(current / vc), maxPage);
+    const vc = visibleCount();
+    const maxCurrent = Math.max(0, total - vc);
+    current = Math.min(current, maxCurrent);
 
-    // Slide — move by one card width + gap
-    const cardW   = cards[0].offsetWidth;
-    const gap     = 24; // matches CSS gap: 1.5rem = 24px
+    const maxPage = Math.max(0, Math.ceil(total / vc) - 1);
+    const page = Math.min(Math.floor(current / vc), maxPage);
+    const cardW = cards[0]?.offsetWidth || 0;
+    const gap = 24;
+
     track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
 
-    // Dots
     dotsWrap.querySelectorAll('.carousel-dot').forEach((d, i) => {
       d.classList.toggle('active', i === page);
     });
 
-    // Arrow states
     btnPrev.disabled = current === 0;
-    btnNext.disabled = current >= total - vc;
+    btnNext.disabled = current >= maxCurrent;
   }
 
   function goTo(page) {
@@ -1777,71 +2020,62 @@ document.querySelectorAll('.faq-question').forEach(btn => {
     updateUI();
   }
 
-  btnPrev.addEventListener('click', () => {
-    if (current > 0) { current--; updateUI(); }
-  });
-  btnNext.addEventListener('click', () => {
-    if (current < total - visibleCount()) { current++; updateUI(); }
-  });
-
-  // Auto-advance every 4s
-  let autoTimer = setInterval(() => {
-    if (current < total - visibleCount()) {
-      current++;
-    } else {
-      current = 0;
-    }
+  function next() {
+    if (current < total - visibleCount()) current++;
+    else current = 0;
     updateUI();
-  }, 4000);
+  }
 
-  // Pause auto on hover
-  track.closest('.registry-carousel-wrap').addEventListener('mouseenter', () => clearInterval(autoTimer));
-  track.closest('.registry-carousel-wrap').addEventListener('mouseleave', () => {
-    autoTimer = setInterval(() => {
-      if (current < total - visibleCount()) { current++; } else { current = 0; }
-      updateUI();
-    }, 4000);
-  });
+  function prev() {
+    if (current > 0) current--;
+    updateUI();
+  }
 
-  // Touch swipe support
-  let touchStartX = 0;
-  track.addEventListener('touchstart', e => { touchStartX = e.changedTouches[0].clientX; }, { passive: true });
-  track.addEventListener('touchend', e => {
+  function startAuto() {
+    stopAuto();
+    if (total > visibleCount()) autoTimer = setInterval(next, 4500);
+  }
+
+  function stopAuto() {
+    if (autoTimer) clearInterval(autoTimer);
+    autoTimer = null;
+  }
+
+  function onResize() { buildDots(); current = 0; updateUI(); startAuto(); }
+  function onTouchStart(e) { touchStartX = e.changedTouches[0].clientX; }
+  function onTouchEnd(e) {
     const dx = e.changedTouches[0].clientX - touchStartX;
-    if (Math.abs(dx) > 50) {
-      if (dx < 0 && current < total - visibleCount()) { current++; }
-      else if (dx > 0 && current > 0) { current--; }
-      updateUI();
-    }
-  }, { passive: true });
+    if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
+  }
 
-  window.addEventListener('resize', () => { buildDots(); current = 0; updateUI(); });
+  btnPrev.onclick = prev;
+  btnNext.onclick = next;
+  track.closest('.registry-carousel-wrap')?.addEventListener('mouseenter', stopAuto);
+  track.closest('.registry-carousel-wrap')?.addEventListener('mouseleave', startAuto);
+  track.addEventListener('touchstart', onTouchStart, { passive: true });
+  track.addEventListener('touchend', onTouchEnd, { passive: true });
+  window.addEventListener('resize', onResize);
+
   buildDots();
   updateUI();
-})();
+  startAuto();
 
-/* ══════════════════════════════════════════════════════════════
-   REGISTRY MODAL
-   ══════════════════════════════════════════════════════════════ */
+  registryCarouselCleanup = () => {
+    stopAuto();
+    window.removeEventListener('resize', onResize);
+    track.removeEventListener('touchstart', onTouchStart);
+    track.removeEventListener('touchend', onTouchEnd);
+  };
+}
+
 function buildModalGrid() {
   const grid = document.getElementById('modal-grid');
-  grid.innerHTML = REGISTRY_ITEMS.map(item => `
-    <div class="modal-item">
-      <div class="modal-item-img">
-        ${item.img
-          ? `<img src="${item.img}" alt="${item.name}" loading="lazy" />`
-          : item.emoji}
-      </div>
-      <div class="modal-item-body">
-        <p class="modal-item-store">${item.store}</p>
-        <p class="modal-item-name">${item.name}</p>
-        <p class="modal-item-price">${item.price}</p>
-        <a class="modal-item-btn" href="${item.url}" target="_blank" rel="noopener">
-          View &amp; Purchase ↗
-        </a>
-      </div>
-    </div>
-  `).join('');
+  if (!grid) return;
+
+  const items = [zolaFundItem(), ...availableRegistryItems()];
+  grid.innerHTML = items.length
+    ? items.map(modalItemMarkup).join('')
+    : '<div class="registry-empty">Registry gifts will appear here soon.</div>';
 }
 
 function openRegistryModal() {
@@ -1860,6 +2094,8 @@ function closeRegistryModal() {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeRegistryModal();
 });
+
+window.addEventListener('load', loadRegistryFromSheet);
 
 /* ══════════════════════════════════════════════════════════════
    RSVP FORM (EmailJS)
