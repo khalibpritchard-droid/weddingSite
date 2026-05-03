@@ -1521,6 +1521,2267 @@ footer::before {
    - Set status to "purchased" to hide it from the public list.
    - Use the image column for a direct image URL.
    ══════════════════════════════════════════════════════════════ */
+const REGISTRY_API_URL = 'https://script.google.com/macros/s/AKfycbxbHWh8NvnmBbW1GNHt92Y3eSVubsyVmX-97U4sATeWhBr99E0z2FwxBX9ceOk5XmZv/exec';
+const ZOLA_REGISTRY_URL  = 'https://www.zola.com/registry/khalibandzoe';
+
+// This will be filled from the Google Sheet after the page loads.
+let REGISTRY_ITEMS = [];
+
+/* ══════════════════════════════════════════════════════════════
+   PASSWORD GATE
+   ══════════════════════════════════════════════════════════════ */
+// 🔑 TODO: Change the password below to whatever you'd like guests to use
+const CORRECT_PASSWORD = 'electric'; // ← change this
+const STORAGE_KEY = 'kz_wedding_auth';
+
+const gate     = document.getElementById('gate');
+const site     = document.getElementById('site');
+const pwInput  = document.getElementById('gate-pw');
+const submit   = document.getElementById('gate-submit');
+const errMsg   = document.getElementById('gate-error');
+
+function unlock() {
+  gate.classList.add('unlocked');
+  site.classList.add('visible');
+  localStorage.setItem(STORAGE_KEY, '1');
+  setTimeout(() => {
+    initReveal();
+    initParticles();
+  }, 600);
+}
+
+function tryPassword() {
+  if (pwInput.value.trim() === CORRECT_PASSWORD) {
+    errMsg.classList.remove('show');
+    unlock();
+  } else {
+    errMsg.classList.add('show');
+    pwInput.value = '';
+    pwInput.focus();
+    pwInput.animate([
+      { transform:'translateX(0)' },
+      { transform:'translateX(-6px)' },
+      { transform:'translateX(6px)' },
+      { transform:'translateX(-4px)' },
+      { transform:'translateX(0)' },
+    ], { duration: 320, easing:'ease-out' });
+  }
+}
+
+submit.addEventListener('click', tryPassword);
+pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') tryPassword(); });
+
+if (localStorage.getItem(STORAGE_KEY) === '1') {
+  gate.style.transition = 'none';
+  gate.classList.add('unlocked');
+  site.classList.add('visible');
+  window.addEventListener('load', () => {
+    initReveal();
+    initParticles();
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SCROLL REVEAL
+   ══════════════════════════════════════════════════════════════ */
+function initReveal() {
+  const els = document.querySelectorAll('.reveal');
+  const io = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.classList.add('in');
+        io.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.12 });
+  els.forEach(el => io.observe(el));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   COUNTDOWN
+   ══════════════════════════════════════════════════════════════ */
+const WEDDING_DATE = new Date('2027-11-27T19:30:00-05:00');
+function pad(n, len = 2) { return String(n).padStart(len, '0'); }
+function updateCountdown() {
+  const diff = WEDDING_DATE - Date.now();
+  if (diff <= 0) return;
+  const days  = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins  = Math.floor((diff % 3600000) / 60000);
+  const secs  = Math.floor((diff % 60000) / 1000);
+  document.getElementById('cd-days').textContent  = pad(days, 3);
+  document.getElementById('cd-hours').textContent = pad(hours);
+  document.getElementById('cd-mins').textContent  = pad(mins);
+  document.getElementById('cd-secs').textContent  = pad(secs);
+}
+updateCountdown();
+setInterval(updateCountdown, 1000);
+
+/* ══════════════════════════════════════════════════════════════
+   DYNAMIC MEAL SELECTIONS
+   Renders one meal <select> per guest based on guest count picker.
+   ══════════════════════════════════════════════════════════════ */
+(function initMealSelections() {
+  const guestsSelect   = document.getElementById('rsvp-guests');
+  const mealContainer  = document.getElementById('meal-selections');
+
+  /*
+    🍽️ TODO — MEAL OPTIONS:
+    Update the options array below with your confirmed menu choices.
+    Each object needs a `value` (sent in the email) and `label` (shown to guests).
+    These are cloned for every guest automatically.
+  */
+  const MEAL_OPTIONS = [
+    { value: '',            label: 'Please select…' },
+    { value: 'chicken',     label: 'Herb Roasted Chicken' },
+    { value: 'fish',        label: 'Pan-Seared Sea Bass' },
+    { value: 'vegetarian',  label: 'Seasonal Vegetable Risotto (V)' },
+  ];
+
+  const GUEST_LABELS = ['Your meal', 'Guest 2\'s meal', 'Guest 3\'s meal', 'Guest 4\'s meal'];
+
+  function buildMealSelects(count) {
+    mealContainer.innerHTML = '';
+    for (let i = 0; i < count; i++) {
+      const wrap   = document.createElement('div');
+      wrap.className = 'form-row full';
+      wrap.style.marginBottom = i < count - 1 ? '0.75rem' : '1rem';
+
+      const group  = document.createElement('div');
+      group.className = 'form-group';
+
+      const label  = document.createElement('label');
+      label.className = 'form-label';
+      label.setAttribute('for', `rsvp-meal-${i}`);
+      label.textContent = GUEST_LABELS[i] || `Guest ${i + 1}'s meal`;
+
+      const sel    = document.createElement('select');
+      sel.className = 'form-select rsvp-meal-select';
+      sel.id        = `rsvp-meal-${i}`;
+
+      MEAL_OPTIONS.forEach(opt => {
+        const o = document.createElement('option');
+        o.value       = opt.value;
+        o.textContent = opt.label;
+        sel.appendChild(o);
+      });
+
+      group.appendChild(label);
+      group.appendChild(sel);
+      wrap.appendChild(group);
+      mealContainer.appendChild(wrap);
+    }
+  }
+
+  // Initialise on load and on change
+  buildMealSelects(parseInt(guestsSelect.value, 10));
+  guestsSelect.addEventListener('change', () => {
+    buildMealSelects(parseInt(guestsSelect.value, 10));
+  });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   FAQ ACCORDION
+   ══════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.faq-question').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item   = btn.closest('.faq-item');
+    const isOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(o => {
+      o.classList.remove('open');
+      o.querySelector('.faq-question').setAttribute('aria-expanded','false');
+    });
+    if (!isOpen) {
+      item.classList.add('open');
+      btn.setAttribute('aria-expanded','true');
+    }
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════
+   REGISTRY — GOOGLE SHEETS LOADER + CAROUSEL + MODAL
+   ══════════════════════════════════════════════════════════════ */
+function escapeHTML(value = '') {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#039;');
+}
+
+function parseCSV(text) {
+  const rows = [];
+  let row = [];
+  let cell = '';
+  let insideQuotes = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
+    const next = text[i + 1];
+
+    if (char === '"' && insideQuotes && next === '"') {
+      cell += '"';
+      i++;
+    } else if (char === '"') {
+      insideQuotes = !insideQuotes;
+    } else if (char === ',' && !insideQuotes) {
+      row.push(cell);
+      cell = '';
+    } else if ((char === '\n' || char === '\r') && !insideQuotes) {
+      if (char === '\r' && next === '\n') i++;
+      row.push(cell);
+      if (row.some(v => String(v).trim() !== '')) rows.push(row);
+      row = [];
+      cell = '';
+    } else {
+      cell += char;
+    }
+  }
+
+  row.push(cell);
+  if (row.some(v => String(v).trim() !== '')) rows.push(row);
+  return rows;
+}
+
+function csvToObjects(csvText) {
+  const rows = parseCSV(csvText);
+  if (!rows.length) return [];
+
+  const headers = rows[0].map(h => String(h).trim().toLowerCase());
+  return rows.slice(1).map(row => {
+    const obj = {};
+    headers.forEach((header, i) => { obj[header] = (row[i] || '').trim(); });
+    return obj;
+  });
+}
+
+function registryFallbackName(url) {
+  try {
+    const u = new URL(url);
+    const pathPart = u.pathname.split('/').filter(Boolean).pop() || u.hostname;
+    return pathPart
+      .replace(/[-_]+/g, ' ')
+      .replace(/\.[a-z0-9]+$/i, '')
+      .replace(/\b\w/g, c => c.toUpperCase());
+  } catch (_) {
+    return 'Registry Gift';
+  }
+}
+
+function normalizeRegistryItem(raw, index) {
+  const url    = raw.item_url || raw.url || raw.link || raw.product_url || raw.registry_url || '';
+  const name   = raw.name || raw.title || raw.item || raw.product || raw.gift || registryFallbackName(url);
+  const image  = raw.image || raw.img || raw.image_url || raw.photo || raw.thumbnail || '';
+  const price  = raw.price || raw.amount || '';
+  const store  = raw.store || raw.vendor || raw.retailer || raw.site || 'Registry Gift';
+  const status = (raw.status || 'available').toLowerCase().trim();
+  const buyer  = raw.buyer || raw.purchased_by || raw.purchasedby || '';
+  const notes  = raw.notes || raw.note || raw.description || '';
+  const emoji  = raw.emoji || '🎁';
+
+  return { id: index + 1, url, name, image, price, store, status, buyer, notes, emoji };
+}
+
+function zolaFundItem() {
+  return {
+    id: 'zola-fund',
+    url: ZOLA_REGISTRY_URL,
+    name: 'Honeymoon & Future Home Fund',
+    image: '',
+    price: 'Contribute securely through Zola',
+    store: 'Zola',
+    status: 'available',
+    buyer: '',
+    notes: 'Help us celebrate our next chapter — from honeymoon memories to future home dreams.',
+    emoji: '🏡',
+    isZolaFund: true
+  };
+}
+
+function availableRegistryItems() {
+  return REGISTRY_ITEMS.filter(item => item.status !== 'purchased' && item.url);
+}
+
+function registryImageMarkup(item, className = 'registry-card-img-placeholder') {
+  if (item.image) {
+    return `<div class="${className}"><img src="${escapeHTML(item.image)}" alt="${escapeHTML(item.name)}" loading="lazy" /></div>`;
+  }
+  return `<div class="${className}">${escapeHTML(item.emoji || '🎁')}</div>`;
+}
+
+function registryCardMarkup(item) {
+  const zolaClass = item.isZolaFund ? ' registry-card-zola' : '';
+  const purchasedClass = item.status === 'purchased' ? ' registry-card-purchased' : '';
+  return `
+    <div class="registry-card${zolaClass}${purchasedClass}" data-url="${escapeHTML(item.url)}">
+      ${item.isZolaFund ? '<span class="registry-pill">Cash Fund</span>' : ''}
+      <a class="registry-card-link-overlay" href="${escapeHTML(item.url)}" target="_blank" rel="noopener" aria-label="View ${escapeHTML(item.name)}"></a>
+      ${registryImageMarkup(item)}
+      <div class="registry-card-body">
+        <p class="registry-card-store">${escapeHTML(item.store)}</p>
+        <p class="registry-card-name">${escapeHTML(item.name)}</p>
+        <p class="registry-card-price">${escapeHTML(item.price || 'View details')}</p>
+      </div>
+    </div>
+  `;
+}
+
+function modalItemMarkup(item) {
+  const zolaClass = item.isZolaFund ? ' modal-item-zola' : '';
+  return `
+    <div class="modal-item${zolaClass}">
+      <div class="modal-item-img">
+        ${item.image ? `<img src="${escapeHTML(item.image)}" alt="${escapeHTML(item.name)}" loading="lazy" />` : escapeHTML(item.emoji || '🎁')}
+      </div>
+      <div class="modal-item-body">
+        <p class="modal-item-store">${escapeHTML(item.store)}</p>
+        <p class="modal-item-name">${escapeHTML(item.name)}</p>
+        <p class="modal-item-price">${escapeHTML(item.price || 'View details')}</p>
+        ${item.notes ? `<p class="modal-item-price" style="margin-top:-0.35rem;line-height:1.5;">${escapeHTML(item.notes)}</p>` : ''}
+        <a class="modal-item-btn" href="${escapeHTML(item.url)}" target="_blank" rel="noopener">
+          ${item.isZolaFund ? 'Contribute on Zola ↗' : 'View &amp; Purchase ↗'}
+        </a>
+      </div>
+    </div>
+  `;
+}
+
+let registryCarouselCleanup = null;
+
+function renderRegistryCarousel() {
+  const track = document.getElementById('registry-carousel');
+  if (!track) return;
+
+  const items = [zolaFundItem(), ...availableRegistryItems()];
+
+  if (!items.length) {
+    track.innerHTML = '<div class="registry-empty">Registry gifts will appear here soon.</div>';
+    return;
+  }
+
+  track.innerHTML = items.map(registryCardMarkup).join('');
+  initRegistryCarousel();
+}
+
+async function loadRegistryFromSheet() {
+  const track = document.getElementById('registry-carousel');
+  if (track) track.innerHTML = '<div class="registry-loading">Loading registry gifts…</div>';
+
+  try {
+    const response = await fetch(REGISTRY_API_URL + '?cacheBust=' + Date.now(), {
+      method: 'GET',
+      cache: 'no-store'
+    });
+
+    if (!response.ok) {
+      throw new Error('Registry API returned HTTP ' + response.status);
+    }
+
+    const data = await response.json();
+    const rows = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
+
+    REGISTRY_ITEMS = rows
+      .map(normalizeRegistryItem)
+      .filter(item => item.url);
+
+    console.log('Loaded registry items:', REGISTRY_ITEMS);
+    renderRegistryCarousel();
+    return REGISTRY_ITEMS;
+  } catch (err) {
+    console.error('Registry loading error:', err);
+    if (track) {
+      track.innerHTML = `
+        <div class="registry-empty">
+          We could not load the live registry right now.<br>
+          <a href="${escapeHTML(ZOLA_REGISTRY_URL)}" target="_blank" rel="noopener" style="color:var(--sage);">Visit our Zola registry ↗</a>
+        </div>`;
+    }
+    return [];
+  }
+}
+
+function initRegistryCarousel() {
+  if (registryCarouselCleanup) registryCarouselCleanup();
+
+  const track    = document.getElementById('registry-carousel');
+  const dotsWrap = document.getElementById('carousel-dots');
+  const btnPrev  = document.getElementById('carousel-prev');
+  const btnNext  = document.getElementById('carousel-next');
+  if (!track || !dotsWrap || !btnPrev || !btnNext) return;
+
+  function visibleCount() {
+    if (window.innerWidth <= 480) return 1;
+    if (window.innerWidth <= 768) return 2;
+    return 3;
+  }
+
+  const cards = Array.from(track.querySelectorAll('.registry-card'));
+  const total = cards.length;
+  let current = 0;
+  let autoTimer = null;
+  let touchStartX = 0;
+
+  if (!total) {
+    dotsWrap.innerHTML = '';
+    btnPrev.disabled = true;
+    btnNext.disabled = true;
+    return;
+  }
+
+  function buildDots() {
+    dotsWrap.innerHTML = '';
+    const pages = Math.max(1, Math.ceil(total / visibleCount()));
+    for (let i = 0; i < pages; i++) {
+      const dot = document.createElement('button');
+      dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+      dot.setAttribute('aria-label', `Registry page ${i + 1}`);
+      dot.addEventListener('click', () => goTo(i));
+      dotsWrap.appendChild(dot);
+    }
+  }
+
+  function updateUI() {
+    const vc = visibleCount();
+    const maxCurrent = Math.max(0, total - vc);
+    current = Math.min(current, maxCurrent);
+
+    const maxPage = Math.max(0, Math.ceil(total / vc) - 1);
+    const page = Math.min(Math.floor(current / vc), maxPage);
+    const cardW = cards[0]?.offsetWidth || 0;
+    const gap = 24;
+
+    track.style.transform = `translateX(-${current * (cardW + gap)}px)`;
+
+    dotsWrap.querySelectorAll('.carousel-dot').forEach((d, i) => {
+      d.classList.toggle('active', i === page);
+    });
+
+    btnPrev.disabled = current === 0;
+    btnNext.disabled = current >= maxCurrent;
+  }
+
+  function goTo(page) {
+    current = page * visibleCount();
+    updateUI();
+  }
+
+  function next() {
+    if (current < total - visibleCount()) current++;
+    else current = 0;
+    updateUI();
+  }
+
+  function prev() {
+    if (current > 0) current--;
+    updateUI();
+  }
+
+  function startAuto() {
+    stopAuto();
+    if (total > visibleCount()) autoTimer = setInterval(next, 4500);
+  }
+
+  function stopAuto() {
+    if (autoTimer) clearInterval(autoTimer);
+    autoTimer = null;
+  }
+
+  function onResize() { buildDots(); current = 0; updateUI(); startAuto(); }
+  function onTouchStart(e) { touchStartX = e.changedTouches[0].clientX; }
+  function onTouchEnd(e) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    if (Math.abs(dx) > 50) dx < 0 ? next() : prev();
+  }
+
+  btnPrev.onclick = prev;
+  btnNext.onclick = next;
+  track.closest('.registry-carousel-wrap')?.addEventListener('mouseenter', stopAuto);
+  track.closest('.registry-carousel-wrap')?.addEventListener('mouseleave', startAuto);
+  track.addEventListener('touchstart', onTouchStart, { passive: true });
+  track.addEventListener('touchend', onTouchEnd, { passive: true });
+  window.addEventListener('resize', onResize);
+
+  buildDots();
+  updateUI();
+  startAuto();
+
+  registryCarouselCleanup = () => {
+    stopAuto();
+    window.removeEventListener('resize', onResize);
+    track.removeEventListener('touchstart', onTouchStart);
+    track.removeEventListener('touchend', onTouchEnd);
+  };
+}
+
+function buildModalGrid() {
+  const grid = document.getElementById('modal-grid');
+  if (!grid) return;
+
+  const items = [zolaFundItem(), ...availableRegistryItems()];
+  grid.innerHTML = items.length
+    ? items.map(modalItemMarkup).join('')
+    : '<div class="registry-empty">Registry gifts will appear here soon.</div>';
+}
+
+function openRegistryModal() {
+  buildModalGrid();
+  const modal = document.getElementById('registry-modal');
+  modal.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeRegistryModal() {
+  document.getElementById('registry-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+// Close on Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeRegistryModal();
+});
+
+window.addEventListener('load', loadRegistryFromSheet);
+
+/* ══════════════════════════════════════════════════════════════
+   RSVP FORM (EmailJS)
+   ══════════════════════════════════════════════════════════════
+
+   How to wire up real email sending in 5 minutes — it's free:
+   1. Go to https://www.emailjs.com and create a free account.
+   2. Add an Email Service (Gmail, Outlook, etc.) — note the Service ID.
+   3. Create an Email Template. In the template body, use variables like:
+        Name: {{firstname}} {{lastname}}
+        Email: {{email}}
+        Attending: {{attending}}
+        Guests: {{guests}}
+        Meal: {{meal}}
+        Dietary: {{dietary}}
+        Message: {{message}}
+      Note the Template ID.
+   4. Copy your Public Key from Account > API Keys.
+
+   📧 TODO — EMAILJS CREDENTIALS:
+   Replace the three placeholder strings below with your real values.
+   ══════════════════════════════════════════════════════════════ */
+const EMAILJS_PUBLIC_KEY  = 'YOUR_EMAILJS_PUBLIC_KEY';   // ← from EmailJS Account > API Keys
+const EMAILJS_SERVICE_ID  = 'YOUR_EMAILJS_SERVICE_ID';   // ← from EmailJS Email Services
+const EMAILJS_TEMPLATE_ID = 'YOUR_EMAILJS_TEMPLATE_ID';  // ← from EmailJS Email Templates
+
+// Lazy-load EmailJS SDK only when the form is submitted
+let emailjsLoaded = false;
+function loadEmailJS() {
+  return new Promise((resolve) => {
+    if (emailjsLoaded) { resolve(); return; }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js';
+    s.onload = () => {
+      emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+      emailjsLoaded = true;
+      resolve();
+    };
+    document.head.appendChild(s);
+  });
+}
+
+document.getElementById('rsvp-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+
+  const btn      = document.getElementById('rsvp-submit-btn');
+  const errEl    = document.getElementById('rsvp-form-error');
+
+  // Basic validation
+  const first    = document.getElementById('rsvp-firstname').value.trim();
+  const last     = document.getElementById('rsvp-lastname').value.trim();
+  const email    = document.getElementById('rsvp-email').value.trim();
+  const attending = document.querySelector('input[name="attending"]:checked');
+
+  if (!first || !last || !email || !attending) {
+    errEl.textContent = 'Please fill in all required fields.';
+    errEl.style.display = 'block';
+    return;
+  }
+  errEl.style.display = 'none';
+
+  btn.disabled = true;
+  btn.textContent = 'Sending…';
+
+  const mealSelects = document.querySelectorAll('.rsvp-meal-select');
+  const meals = Array.from(mealSelects).map((s, i) => `Guest ${i + 1}: ${s.value || 'Not selected'}`).join(' | ');
+
+  const params = {
+    firstname : first,
+    lastname  : last,
+    email     : email,
+    attending : attending.value === 'yes' ? 'Joyfully Accepts ✓' : 'Regretfully Declines',
+    guests    : document.getElementById('rsvp-guests').value,
+    meal      : meals,
+    dietary   : document.getElementById('rsvp-dietary').value || 'None',
+    message   : document.getElementById('rsvp-message').value || '—',
+  };
+
+  try {
+    // If EmailJS is not configured yet, simulate success in dev
+    if (EMAILJS_PUBLIC_KEY === 'YOUR_EMAILJS_PUBLIC_KEY') {
+      // TODO: remove this dev-mode bypass once EmailJS is configured
+      await new Promise(r => setTimeout(r, 900)); // simulate network
+      console.log('Dev mode — RSVP data:', params);
+    } else {
+      await loadEmailJS();
+      await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, params);
+    }
+    // Success
+    document.getElementById('rsvp-form-wrap').style.display = 'none';
+    document.getElementById('rsvp-success').style.display   = 'block';
+  } catch (err) {
+    console.error('EmailJS error:', err);
+    errEl.textContent = 'Something went wrong — please email us directly.';
+    errEl.style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Send RSVP';
+  }
+});
+
+/* ══════════════════════════════════════════════════════════════
+   FALLING PARTICLES (leaves + gold flakes)
+   ══════════════════════════════════════════════════════════════ */
+function initParticles() {
+  const canvas = document.getElementById('particles-canvas');
+  const ctx    = canvas.getContext('2d');
+
+  // Resize canvas to viewport
+  function resize() {
+    canvas.width  = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  resize();
+  window.addEventListener('resize', resize, { passive: true });
+
+  // Leaf shapes (drawn as SVG-like paths on canvas)
+  function drawLeaf(ctx, size, color, alpha) {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = color;
+    ctx.beginPath();
+    // Simple teardrop leaf
+    ctx.moveTo(0, -size * 0.6);
+    ctx.bezierCurveTo(size * 0.5, -size * 0.2, size * 0.5, size * 0.4, 0, size * 0.6);
+    ctx.bezierCurveTo(-size * 0.5, size * 0.4, -size * 0.5, -size * 0.2, 0, -size * 0.6);
+    ctx.fill();
+    // Vein
+    ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+    ctx.lineWidth   = 0.5;
+    ctx.beginPath();
+    ctx.moveTo(0, -size * 0.55);
+    ctx.lineTo(0, size * 0.55);
+    ctx.stroke();
+  }
+
+  function drawFlake(ctx, size, alpha) {
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle   = '#b59a6a';
+    // Small irregular hexagonal flake
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      const r = size * (0.7 + Math.random() * 0.3);
+      i === 0 ? ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r)
+              : ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+    }
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Particle class
+  class Particle {
+    constructor() { this.reset(true); }
+
+    reset(init = false) {
+      this.x      = Math.random() * canvas.width;
+      this.y      = init ? Math.random() * canvas.height : -20;
+      this.type   = Math.random() < 0.6 ? 'leaf' : 'flake'; // 60% leaves, 40% flakes
+      this.size   = this.type === 'leaf'
+        ? 6 + Math.random() * 8
+        : 2 + Math.random() * 3;
+      this.speedY = 0.4 + Math.random() * 0.8;
+      this.speedX = (Math.random() - 0.5) * 0.5;
+      this.rot    = Math.random() * Math.PI * 2;
+      this.rotSpd = (Math.random() - 0.5) * 0.02;
+      this.alpha  = 0.15 + Math.random() * 0.3;
+      this.swing  = Math.random() * Math.PI * 2;
+      this.swingR = 0.003 + Math.random() * 0.005;
+      // Leaf colors — sage greens and warm tones
+      const leafColors = ['#8a9e85','#a5b8a0','#6e8a69','#c5d4c1','#b0c4ab'];
+      this.color  = leafColors[Math.floor(Math.random() * leafColors.length)];
+    }
+
+    update() {
+      this.swing += this.swingR;
+      this.x += this.speedX + Math.sin(this.swing) * 0.6;
+      this.y += this.speedY;
+      this.rot += this.rotSpd;
+      if (this.y > canvas.height + 30) this.reset();
+    }
+
+    draw() {
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rot);
+      if (this.type === 'leaf') {
+        drawLeaf(ctx, this.size, this.color, this.alpha);
+      } else {
+        drawFlake(ctx, this.size, this.alpha);
+      }
+      ctx.restore();
+    }
+  }
+
+  // Create particles — more on wider screens
+  const COUNT = Math.min(55, Math.floor(window.innerWidth / 22));
+  const particles = Array.from({ length: COUNT }, () => new Particle());
+
+  // Reduce particles when page is not visible (battery saving)
+  let visible = true;
+  document.addEventListener('visibilitychange', () => {
+    visible = document.visibilityState === 'visible';
+  });
+
+  let lastTime = 0;
+  function loop(ts) {
+    const delta = ts - lastTime;
+    if (visible && delta > 16) { // cap ~60fps
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      particles.forEach(p => { p.update(); p.draw(); });
+      lastTime = ts;
+    }
+    requestAnimationFrame(loop);
+  }
+  requestAnimationFrame(loop);
+}
+</script>
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Khalib & Zoë — November 27, 2027</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300;1,400&family=Great+Vibes&family=Jost:wght@300;400;500&display=swap" rel="stylesheet" />
+
+<style>
+/* ─── TOKENS ──────────────────────────────────────────────── */
+:root {
+  --sage: #8a9e85;
+  --sage-lt: #c5d4c1;
+  --cream: #faf6ef;
+  --beige: #ede5d8;
+  --linen: #f5ede0;
+  --brown: #3a2c22;
+  --brown-md:#5c4033;
+  --gold: #b59a6a;
+  --white: #ffffff;
+  --ff-script: 'Great Vibes', cursive;
+  --ff-serif: 'Cormorant Garamond', Georgia, serif;
+  --ff-sans: 'Jost', sans-serif;
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ─── RESET ───────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; font-size: 16px; }
+body {
+  background: var(--cream);
+  color: var(--brown);
+  font-family: var(--ff-serif);
+  line-height: 1.75;
+  overflow-x: hidden;
+}
+img { display: block; max-width: 100%; }
+a { color: inherit; text-decoration: none; }
+
+/* ─── PASSWORD GATE ───────────────────────────────────────── */
+#gate {
+  position: fixed; inset: 0; z-index: 9999;
+  background: var(--cream);
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  transition: opacity 0.9s var(--ease-out), visibility 0.9s;
+}
+#gate.unlocked { opacity: 0; visibility: hidden; pointer-events: none; }
+
+.gate-inner {
+  text-align: center;
+  padding: 3rem 2rem;
+  max-width: 420px;
+  width: 100%;
+}
+.gate-floral { width: 120px; margin: 0 auto 1.5rem; opacity: 0.55; }
+.gate-title {
+  font-family: var(--ff-script);
+  font-size: clamp(2.8rem, 8vw, 4rem);
+  color: var(--brown);
+  line-height: 1.1;
+  margin-bottom: 0.4rem;
+}
+.gate-sub {
+  font-family: var(--ff-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 2.4rem;
+}
+.gate-label {
+  font-family: var(--ff-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--brown-md);
+  display: block;
+  margin-bottom: 0.55rem;
+}
+.gate-input {
+  width: 100%;
+  padding: 0.85rem 1.25rem;
+  border: 1px solid var(--sage-lt);
+  border-radius: 2px;
+  background: var(--white);
+  font-family: var(--ff-serif);
+  font-size: 1rem;
+  color: var(--brown);
+  outline: none;
+  transition: border-color 0.25s;
+  text-align: center;
+  letter-spacing: 0.1em;
+}
+.gate-input:focus { border-color: var(--sage); }
+.gate-input::placeholder { color: #bbb; font-style: italic; }
+.gate-btn {
+  margin-top: 1rem;
+  width: 100%;
+  padding: 0.9rem;
+  background: var(--brown);
+  color: var(--cream);
+  font-family: var(--ff-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.25s, transform 0.15s;
+}
+.gate-btn:hover { background: var(--brown-md); transform: translateY(-1px); }
+.gate-error {
+  font-family: var(--ff-sans);
+  font-size: 0.72rem;
+  color: #b36a5e;
+  letter-spacing: 0.08em;
+  margin-top: 0.75rem;
+  min-height: 1em;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.gate-error.show { opacity: 1; }
+
+/* ─── MAIN SITE ───────────────────────────────────────────── */
+#site { opacity: 0; transition: opacity 1s var(--ease-out) 0.3s; }
+#site.visible { opacity: 1; }
+
+/* ─── PARTICLES CANVAS ────────────────────────────────────── */
+#particles-canvas {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ─── SCROLL REVEAL ───────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.8s var(--ease-out), transform 0.8s var(--ease-out);
+}
+.reveal.in { opacity: 1; transform: none; }
+.reveal-delay-1 { transition-delay: 0.15s; }
+.reveal-delay-2 { transition-delay: 0.3s; }
+.reveal-delay-3 { transition-delay: 0.45s; }
+.reveal-delay-4 { transition-delay: 0.6s; }
+
+/* ─── NAV ─────────────────────────────────────────────────── */
+nav {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  display: flex; align-items: center; justify-content: center;
+  gap: 2rem;
+  padding: 1.2rem 2rem;
+  background: rgba(250,246,239,0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(138,158,133,0.2);
+  flex-wrap: wrap;
+}
+nav a {
+  font-family: var(--ff-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--brown-md);
+  transition: color 0.2s;
+}
+nav a:hover { color: var(--sage); }
+
+
+/* ─── HERO ────────────────────────────────────────────────── */
+#hero {
+  min-height: 100svh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 8rem 2rem 5rem;
+  position: relative;
+  overflow: hidden;
+  background: var(--cream);
+}
+#hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 70% 60% at 50% 40%, #e8ede4 0%, transparent 70%);
+  pointer-events: none;
+}
+.hero-floral-tl, .hero-floral-br {
+  position: absolute;
+  width: clamp(200px, 32vw, 380px);
+  opacity: 0.28;
+  pointer-events: none;
+}
+.hero-floral-tl { top: -2%; left: -3%; }
+.hero-floral-br { bottom: -2%; right: -3%; transform: rotate(180deg); }
+.hero-inner { position: relative; z-index: 1; }
+.hero-date-loc {
+  font-family: var(--ff-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 1.8rem;
+}
+.hero-names {
+  font-family: var(--ff-script);
+  font-size: clamp(4rem, 12vw, 8rem);
+  color: var(--brown);
+  line-height: 1.05;
+  margin-bottom: 0.6rem;
+}
+.hero-ampersand { display: block; font-size: 0.65em; color: var(--sage); }
+.hero-divider {
+  display: flex; align-items: center; gap: 1rem;
+  justify-content: center;
+  margin: 1.8rem auto;
+  max-width: 320px;
+}
+.hero-divider span {
+  flex: 1; height: 1px;
+  background: linear-gradient(to right, transparent, var(--sage-lt), transparent);
+}
+.hero-divider-icon { color: var(--gold); font-size: 0.85rem; }
+.hero-detail {
+  font-family: var(--ff-serif);
+  font-size: 1.05rem;
+  font-style: italic;
+  color: var(--brown-md);
+  letter-spacing: 0.04em;
+}
+.hero-scroll-hint {
+  position: absolute; bottom: 2.2rem; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 0.4rem;
+  font-family: var(--ff-sans); font-size: 0.6rem;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--sage); opacity: 0.75;
+  animation: nudge 2.4s ease-in-out infinite;
+}
+@keyframes nudge { 0%,100%{transform:translateX(-50%) translateY(0)} 55%{transform:translateX(-50%) translateY(6px)} }
+
+/* ─── COUNTDOWN ───────────────────────────────────────────── */
+#countdown {
+  background: var(--brown);
+  padding: 5rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+#countdown::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='400' height='400' viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Ccircle cx='200' cy='200' r='180' fill='none' stroke='%23ffffff08' stroke-width='1'/%3E%3Ccircle cx='200' cy='200' r='140' fill='none' stroke='%23ffffff05' stroke-width='1'/%3E%3C/svg%3E") center/cover;
+  pointer-events: none;
+}
+.countdown-heading {
+  font-family: var(--ff-script);
+  font-size: clamp(2rem, 6vw, 3rem);
+  color: var(--cream);
+  margin-bottom: 3rem;
+  opacity: 0.9;
+}
+.countdown-grid {
+  display: flex; gap: clamp(1.5rem, 4vw, 4rem);
+  justify-content: center; flex-wrap: wrap;
+}
+.countdown-unit { display: flex; flex-direction: column; align-items: center; }
+.countdown-num {
+  font-family: var(--ff-serif);
+  font-size: clamp(3rem, 8vw, 5.5rem);
+  font-weight: 300;
+  color: var(--white);
+  line-height: 1;
+  min-width: 2ch;
+  text-align: center;
+}
+.countdown-sep {
+  font-size: clamp(2.5rem, 6vw, 4.5rem);
+  color: var(--gold);
+  opacity: 0.6;
+  line-height: 1;
+  align-self: flex-start;
+  padding-top: 0.1em;
+  font-family: var(--ff-serif);
+  font-weight: 300;
+}
+.countdown-label {
+  font-family: var(--ff-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sage-lt);
+  margin-top: 0.5rem;
+}
+
+/* ─── SECTION UTILITY ─────────────────────────────────────── */
+section { padding: 6rem 2rem; }
+.section-tag {
+  font-family: var(--ff-sans);
+  font-size: 0.65rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 0.8rem;
+  display: block;
+}
+.section-title {
+  font-family: var(--ff-script);
+  font-size: clamp(2.4rem, 6vw, 3.6rem);
+  color: var(--brown);
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+}
+.section-divider {
+  width: 60px; height: 1px;
+  background: var(--gold);
+  margin: 0 auto 2rem;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ─── REGISTRY SECTION ─────────────────────────────────────
+   ══════════════════════════════════════════════════════════ */
+#registry {
+  background: var(--linen);
+  text-align: center;
+  overflow: hidden;
+}
+
+/* Carousel track */
+.registry-carousel-wrap {
+  position: relative;
+  max-width: 1000px;
+  margin: 0 auto 2.5rem;
+  overflow: hidden;
+}
+.registry-carousel {
+  display: flex;
+  gap: 1.5rem;
+  transition: transform 0.55s var(--ease-out);
+  will-change: transform;
+}
+.registry-card {
+  flex: 0 0 calc(33.333% - 1rem);
+  min-width: 0;
+  background: var(--white);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 16px rgba(58,44,34,0.08);
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s;
+  cursor: pointer;
+  position: relative;
+}
+.registry-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 32px rgba(58,44,34,0.14);
+}
+.registry-card-img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  background: var(--beige);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.registry-card-img img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.registry-card-img-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  background: linear-gradient(135deg, var(--sage-lt) 0%, var(--beige) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+}
+.registry-card-body {
+  padding: 1.25rem 1.25rem 1.5rem;
+  text-align: left;
+}
+.registry-card-store {
+  font-family: var(--ff-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 0.3rem;
+}
+.registry-card-name {
+  font-family: var(--ff-serif);
+  font-size: 1rem;
+  color: var(--brown);
+  line-height: 1.4;
+  margin-bottom: 0.3rem;
+}
+.registry-card-price {
+  font-family: var(--ff-sans);
+  font-size: 0.75rem;
+  color: var(--brown-md);
+  opacity: 0.7;
+}
+.registry-card-link-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+}
+
+/* Carousel nav arrows */
+.carousel-arrows {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+.carousel-arrow {
+  width: 42px; height: 42px;
+  border-radius: 50%;
+  border: 1px solid var(--sage-lt);
+  background: var(--white);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--brown-md);
+  font-size: 1rem;
+  transition: background 0.2s, border-color 0.2s, transform 0.15s;
+  box-shadow: 0 2px 8px rgba(58,44,34,0.07);
+}
+.carousel-arrow:hover {
+  background: var(--brown);
+  border-color: var(--brown);
+  color: var(--cream);
+  transform: scale(1.05);
+}
+.carousel-arrow:disabled {
+  opacity: 0.3;
+  cursor: default;
+  transform: none;
+}
+
+/* Carousel dots */
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 2.5rem;
+}
+.carousel-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--sage-lt);
+  transition: background 0.3s, transform 0.3s;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+}
+.carousel-dot.active {
+  background: var(--gold);
+  transform: scale(1.4);
+}
+
+/* Registry CTA buttons */
+.registry-cta {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+.registry-btn-primary {
+  display: inline-block;
+  padding: 0.9rem 2.4rem;
+  background: var(--brown);
+  color: var(--cream);
+  font-family: var(--ff-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: background 0.25s, transform 0.2s, box-shadow 0.25s;
+  box-shadow: 0 2px 12px rgba(58,44,34,0.2);
+  text-decoration: none;
+}
+.registry-btn-primary:hover {
+  background: var(--brown-md);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(58,44,34,0.3);
+}
+.registry-btn-secondary {
+  display: inline-block;
+  padding: 0.9rem 2.4rem;
+  background: transparent;
+  color: var(--brown);
+  font-family: var(--ff-sans);
+  font-size: 0.7rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  border: 1px solid var(--sage-lt);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: border-color 0.25s, color 0.25s, transform 0.2s;
+  text-decoration: none;
+}
+.registry-btn-secondary:hover {
+  border-color: var(--brown);
+  color: var(--brown);
+  transform: translateY(-2px);
+}
+
+/* ─── REGISTRY MODAL (View All) ────────────────────────────── */
+#registry-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.35s var(--ease-out), visibility 0.35s;
+  padding: 1rem;
+}
+#registry-modal.open {
+  opacity: 1;
+  visibility: visible;
+}
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(58,44,34,0.55);
+  backdrop-filter: blur(4px);
+}
+.modal-panel {
+  position: relative;
+  z-index: 1;
+  background: var(--cream);
+  border-radius: 6px;
+  width: 100%;
+  max-width: 960px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 80px rgba(58,44,34,0.3);
+  transform: translateY(24px) scale(0.98);
+  transition: transform 0.4s var(--ease-out);
+}
+#registry-modal.open .modal-panel {
+  transform: translateY(0) scale(1);
+}
+.modal-header {
+  position: sticky;
+  top: 0;
+  background: var(--cream);
+  border-bottom: 1px solid rgba(138,158,133,0.2);
+  padding: 1.75rem 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 10;
+}
+.modal-title {
+  font-family: var(--ff-script);
+  font-size: 2.2rem;
+  color: var(--brown);
+  line-height: 1;
+}
+.modal-close {
+  width: 38px; height: 38px;
+  border-radius: 50%;
+  border: 1px solid var(--sage-lt);
+  background: none;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  color: var(--brown-md);
+  font-size: 1.1rem;
+  transition: background 0.2s, border-color 0.2s;
+}
+.modal-close:hover { background: var(--brown); border-color: var(--brown); color: var(--cream); }
+.modal-body { padding: 2rem; }
+.modal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.25rem;
+}
+.modal-item {
+  background: var(--white);
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(58,44,34,0.07);
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s;
+  position: relative;
+}
+.modal-item:hover { transform: translateY(-3px); box-shadow: 0 8px 24px rgba(58,44,34,0.12); }
+.modal-item-img {
+  width: 100%;
+  aspect-ratio: 1/1;
+  background: linear-gradient(135deg, var(--sage-lt) 0%, var(--beige) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+}
+.modal-item-img img { width: 100%; height: 100%; object-fit: cover; }
+.modal-item-body { padding: 1rem; }
+.modal-item-store {
+  font-family: var(--ff-sans);
+  font-size: 0.58rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 0.25rem;
+}
+.modal-item-name {
+  font-family: var(--ff-serif);
+  font-size: 0.95rem;
+  color: var(--brown);
+  line-height: 1.35;
+  margin-bottom: 0.35rem;
+}
+.modal-item-price {
+  font-family: var(--ff-sans);
+  font-size: 0.72rem;
+  color: var(--brown-md);
+  opacity: 0.65;
+  margin-bottom: 0.9rem;
+}
+.modal-item-btn {
+  display: block;
+  width: 100%;
+  padding: 0.6rem;
+  background: var(--brown);
+  color: var(--cream);
+  font-family: var(--ff-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  border-radius: 2px;
+  text-decoration: none;
+  transition: background 0.2s;
+}
+.modal-item-btn:hover { background: var(--brown-md); }
+.modal-footer {
+  border-top: 1px solid rgba(138,158,133,0.2);
+  padding: 1.5rem 2rem;
+  text-align: center;
+}
+
+/* ══════════════════════════════════════════════════════════
+   ─── RSVP SECTION ─────────────────────────────────────────
+   ══════════════════════════════════════════════════════════ */
+#rsvp { background: var(--linen); text-align: center; }
+.rsvp-card {
+  max-width: 560px;
+  margin: 0 auto;
+  background: var(--white);
+  border-radius: 4px;
+  padding: 3.5rem 3rem;
+  box-shadow: 0 4px 40px rgba(58,44,34,0.1), 0 1px 4px rgba(58,44,34,0.06);
+  position: relative;
+  overflow: hidden;
+}
+.rsvp-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 6px;
+  background: linear-gradient(90deg, var(--sage-lt), var(--gold), var(--sage-lt));
+}
+.wax-seal {
+  width: 68px; height: 68px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #c4a97a, var(--gold) 50%, #8a6f3e);
+  margin: 0 auto 2rem;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 2px 12px rgba(181,154,106,0.45);
+  position: relative;
+}
+.wax-seal::after { content: '✦'; color: rgba(255,255,255,0.7); font-size: 1.4rem; }
+.rsvp-body {
+  font-family: var(--ff-serif);
+  font-size: 1.05rem;
+  color: var(--brown-md);
+  font-style: italic;
+  line-height: 1.8;
+  margin-bottom: 2rem;
+}
+.rsvp-deadline {
+  font-family: var(--ff-sans);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 2rem;
+}
+
+/* RSVP Form fields */
+.rsvp-form { text-align: left; }
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.form-row.full { grid-template-columns: 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 0.35rem; }
+.form-label {
+  font-family: var(--ff-sans);
+  font-size: 0.62rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--brown-md);
+}
+.form-input, .form-select, .form-textarea {
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--sage-lt);
+  border-radius: 2px;
+  background: var(--cream);
+  font-family: var(--ff-serif);
+  font-size: 0.95rem;
+  color: var(--brown);
+  outline: none;
+  transition: border-color 0.25s, box-shadow 0.25s;
+  width: 100%;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  border-color: var(--sage);
+  box-shadow: 0 0 0 3px rgba(138,158,133,0.15);
+}
+.form-textarea { resize: vertical; min-height: 90px; }
+.form-select { appearance: none; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%238a9e85' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 1rem center; padding-right: 2.5rem; }
+
+.form-radio-group {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.2rem;
+}
+.form-radio-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--ff-serif);
+  font-size: 0.95rem;
+  color: var(--brown-md);
+  cursor: pointer;
+}
+.form-radio-label input[type="radio"] { accent-color: var(--sage); width: 16px; height: 16px; }
+
+.form-divider {
+  height: 1px;
+  background: rgba(138,158,133,0.2);
+  margin: 1.5rem 0;
+}
+.form-section-label {
+  font-family: var(--ff-sans);
+  font-size: 0.6rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--sage);
+  margin-bottom: 0.8rem;
+  display: block;
+}
+
+.rsvp-submit-btn {
+  width: 100%;
+  padding: 1rem;
+  background: var(--brown);
+  color: var(--cream);
+  font-family: var(--ff-sans);
+  font-size: 0.72rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+  margin-top: 1.5rem;
+  position: relative;
+  overflow: hidden;
+  transition: background 0.3s, transform 0.2s, box-shadow 0.3s;
+  box-shadow: 0 2px 12px rgba(58,44,34,0.25);
+}
+.rsvp-submit-btn:hover { background: var(--brown-md); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(58,44,34,0.3); }
+.rsvp-submit-btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+/* RSVP success/error states */
+.rsvp-success {
+  text-align: center;
+  padding: 2rem 0;
+  display: none;
+}
+.rsvp-success-icon {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: var(--sage-lt);
+  margin: 0 auto 1.5rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.6rem;
+}
+.rsvp-success-title {
+  font-family: var(--ff-script);
+  font-size: 2rem;
+  color: var(--brown);
+  margin-bottom: 0.75rem;
+}
+.rsvp-success-text {
+  font-family: var(--ff-serif);
+  font-size: 1rem;
+  color: var(--brown-md);
+  font-style: italic;
+  line-height: 1.8;
+}
+.rsvp-form-error {
+  font-family: var(--ff-sans);
+  font-size: 0.7rem;
+  color: #b36a5e;
+  letter-spacing: 0.08em;
+  margin-top: 0.75rem;
+  display: none;
+  text-align: center;
+}
+
+/* ─── LOVE STORY ──────────────────────────────────────────── */
+#story { text-align: center; }
+.story-inner { max-width: 640px; margin: 0 auto; }
+.story-text {
+  font-family: var(--ff-serif);
+  font-size: 1.15rem;
+  color: var(--brown-md);
+  line-height: 2;
+  margin-bottom: 1.5rem;
+}
+.story-text:first-of-type::first-letter {
+  font-family: var(--ff-script);
+  font-size: 3.5em;
+  float: left;
+  line-height: 0.75;
+  margin: 0.05em 0.08em 0 0;
+  color: var(--sage);
+}
+.story-image-frame {
+  margin: 3rem auto;
+  max-width: 520px;
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: 0 4px 32px rgba(58,44,34,0.12);
+  position: relative;
+}
+.story-image-frame img { width: 100%; height: 360px; object-fit: cover; }
+.story-image-frame::after {
+  content: '';
+  position: absolute; inset: 0;
+  border: 1px solid rgba(181,154,106,0.35);
+  border-radius: 3px;
+  pointer-events: none;
+}
+.story-quote {
+  font-family: var(--ff-script);
+  font-size: clamp(1.4rem, 4vw, 2rem);
+  color: var(--sage);
+  margin: 2rem 0;
+  line-height: 1.4;
+}
+
+/* ─── DETAILS GRID ────────────────────────────────────────── */
+#details { background: var(--beige); text-align: center; }
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.5rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+.detail-card {
+  background: var(--white);
+  border-radius: 4px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 2px 16px rgba(58,44,34,0.07);
+  transition: transform 0.3s var(--ease-out), box-shadow 0.3s;
+}
+.detail-card:hover { transform: translateY(-4px); box-shadow: 0 8px 28px rgba(58,44,34,0.12); }
+.detail-icon {
+  width: 52px; height: 52px;
+  border-radius: 50%;
+  background: var(--linen);
+  margin: 0 auto 1.25rem;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.4rem;
+}
+.detail-card-title { font-family: var(--ff-script); font-size: 1.7rem; color: var(--brown); margin-bottom: 0.5rem; }
+.detail-card-text { font-family: var(--ff-serif); font-size: 0.95rem; color: var(--brown-md); line-height: 1.7; font-style: italic; }
+.detail-card-sub { font-family: var(--ff-sans); font-size: 0.65rem; letter-spacing: 0.18em; text-transform: uppercase; color: var(--sage); margin-top: 0.5rem; }
+
+/* ─── GALLERY ─────────────────────────────────────────────── */
+#gallery { text-align: center; }
+.gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+@media (max-width: 640px) { .gallery-grid { grid-template-columns: repeat(2, 1fr); } }
+.gallery-item {
+  border-radius: 3px;
+  overflow: hidden;
+  aspect-ratio: 4/5;
+  position: relative;
+  background: var(--beige);
+}
+.gallery-item:nth-child(2) { aspect-ratio: 4/5; grid-row: span 1; }
+.gallery-item:first-child { grid-row: span 2; aspect-ratio: auto; }
+.gallery-item img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s var(--ease-out); }
+.gallery-item:hover img { transform: scale(1.04); }
+.gallery-item:nth-child(1) { background: #c5d4c1; }
+.gallery-item:nth-child(2) { background: #d9cfc4; }
+.gallery-item:nth-child(3) { background: #bfcfbb; }
+.gallery-item:nth-child(4) { background: #e5ddd3; }
+.gallery-item:nth-child(5) { background: #cad8c6; }
+.gallery-placeholder {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--ff-script);
+  font-size: 2rem;
+  color: rgba(58,44,34,0.18);
+}
+
+/* ─── FAQ ─────────────────────────────────────────────────── */
+#faq { background: var(--cream); text-align: center; }
+.faq-list { max-width: 700px; margin: 0 auto; text-align: left; }
+.faq-item { border-bottom: 1px solid rgba(138,158,133,0.25); }
+.faq-item:first-child { border-top: 1px solid rgba(138,158,133,0.25); }
+.faq-question {
+  width: 100%; background: none; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem; padding: 1.4rem 0;
+  font-family: var(--ff-serif); font-size: 1.05rem; color: var(--brown);
+  text-align: left; line-height: 1.4; transition: color 0.2s;
+}
+.faq-question:hover { color: var(--sage); }
+.faq-icon {
+  flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--sage-lt);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--gold); font-size: 0.85rem;
+  transition: transform 0.35s var(--ease-out), background 0.2s, border-color 0.2s;
+}
+.faq-item.open .faq-icon { transform: rotate(45deg); background: var(--brown); border-color: var(--brown); color: var(--cream); }
+.faq-answer { overflow: hidden; max-height: 0; transition: max-height 0.4s var(--ease-out), padding 0.3s; }
+.faq-item.open .faq-answer { max-height: 400px; }
+.faq-answer-inner { font-family: var(--ff-serif); font-size: 0.97rem; color: var(--brown-md); line-height: 1.85; font-style: italic; padding-bottom: 1.4rem; }
+
+/* ─── FOOTER ──────────────────────────────────────────────── */
+footer {
+  background: var(--brown);
+  padding: 4rem 2rem;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+footer::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 60% 60% at 50% 100%, rgba(138,158,133,0.08), transparent);
+  pointer-events: none;
+}
+.footer-names { font-family: var(--ff-script); font-size: clamp(2.4rem, 6vw, 3.6rem); color: var(--cream); margin-bottom: 0.5rem; }
+.footer-date { font-family: var(--ff-sans); font-size: 0.65rem; letter-spacing: 0.28em; text-transform: uppercase; color: var(--sage-lt); opacity: 0.7; margin-bottom: 2rem; }
+.footer-divider { width: 40px; height: 1px; background: var(--gold); margin: 0 auto 1.5rem; opacity: 0.5; }
+.footer-note { font-family: var(--ff-serif); font-size: 0.85rem; color: var(--beige); opacity: 0.5; font-style: italic; }
+
+
+
+/* ─── DYNAMIC REGISTRY STATES ─────────────────────────────── */
+.registry-loading,
+.registry-empty {
+  flex: 0 0 100%;
+  background: var(--white);
+  border-radius: 4px;
+  padding: 2rem;
+  text-align: center;
+  font-family: var(--ff-serif);
+  color: var(--brown-md);
+  font-style: italic;
+  box-shadow: 0 2px 16px rgba(58,44,34,0.06);
+}
+.registry-pill {
+  position: absolute;
+  top: 0.8rem;
+  left: 0.8rem;
+  z-index: 3;
+  background: rgba(250,246,239,0.92);
+  color: var(--brown-md);
+  border: 1px solid rgba(181,154,106,0.45);
+  border-radius: 999px;
+  padding: 0.28rem 0.6rem;
+  font-family: var(--ff-sans);
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.registry-card-zola .registry-card-img-placeholder,
+.modal-item-zola .modal-item-img {
+  background: radial-gradient(circle at 35% 25%, #fff 0%, var(--linen) 36%, var(--sage-lt) 100%);
+}
+.registry-card-purchased {
+  opacity: 0.58;
+}
+.registry-card-purchased::after {
+  content: 'Purchased';
+  position: absolute;
+  top: 0.8rem;
+  right: 0.8rem;
+  z-index: 3;
+  background: var(--brown);
+  color: var(--cream);
+  border-radius: 999px;
+  padding: 0.3rem 0.65rem;
+  font-family: var(--ff-sans);
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.registry-note {
+  max-width: 640px;
+  margin: -0.5rem auto 2rem;
+  font-family: var(--ff-serif);
+  font-size: 1rem;
+  color: var(--brown-md);
+  font-style: italic;
+  line-height: 1.8;
+}
+
+/* ─── RESPONSIVE ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  nav { gap: 1.2rem; padding: 1rem 1.5rem; }
+  .rsvp-card { padding: 2.5rem 1.5rem; }
+  .countdown-sep { display: none; }
+  .form-row { grid-template-columns: 1fr; }
+  .registry-card { flex: 0 0 calc(50% - 0.75rem); }
+  .modal-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+}
+@media (max-width: 480px) {
+  nav { flex-wrap: wrap; gap: 0.8rem 1.5rem; }
+  .gallery-grid { grid-template-columns: 1fr 1fr; }
+  .gallery-item:first-child { grid-row: span 1; aspect-ratio: 4/5; }
+  .registry-card { flex: 0 0 calc(100% - 0rem); }
+}
+</style>
+</head>
+<body>
+
+<!-- Particle canvas (always rendered, starts after unlock) -->
+<canvas id="particles-canvas"></canvas>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PASSWORD GATE
+═══════════════════════════════════════════════════════════════ -->
+<div id="gate" role="dialog" aria-modal="true" aria-label="Password Protected">
+  <div class="gate-inner">
+    <svg class="gate-floral" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#8a9e85" stroke-width="0.7" stroke-linecap="round">
+        <ellipse cx="60" cy="60" rx="28" ry="14" transform="rotate(0 60 60)"/>
+        <ellipse cx="60" cy="60" rx="28" ry="14" transform="rotate(36 60 60)"/>
+        <ellipse cx="60" cy="60" rx="28" ry="14" transform="rotate(72 60 60)"/>
+        <ellipse cx="60" cy="60" rx="28" ry="14" transform="rotate(108 60 60)"/>
+        <ellipse cx="60" cy="60" rx="28" ry="14" transform="rotate(144 60 60)"/>
+        <circle cx="60" cy="60" r="6" fill="#b59a6a" stroke="none" opacity="0.7"/>
+        <path d="M60 88 Q55 100 48 110" opacity="0.5"/>
+        <path d="M60 88 Q65 100 72 110" opacity="0.5"/>
+        <path d="M50 106 Q46 102 44 98" opacity="0.4"/>
+        <path d="M70 106 Q74 102 76 98" opacity="0.4"/>
+        <ellipse cx="46" cy="96" rx="5" ry="3" transform="rotate(-20 46 96)" opacity="0.4"/>
+        <ellipse cx="74" cy="96" rx="5" ry="3" transform="rotate(20 74 96)" opacity="0.4"/>
+      </g>
+    </svg>
+    <h1 class="gate-title">Khalib &amp; Zoë</h1>
+    <p class="gate-sub">November 27, 2027 &nbsp;·&nbsp; The Club Continental</p>
+    <label class="gate-label" for="gate-pw">Enter password to continue</label>
+    <input class="gate-input" id="gate-pw" type="password" placeholder="••••••••" autocomplete="off" autofocus />
+    <button class="gate-btn" id="gate-submit">Enter</button>
+    <p class="gate-error" id="gate-error">Incorrect password — please try again.</p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     MAIN SITE
+═══════════════════════════════════════════════════════════════ -->
+<div id="site">
+
+  <!-- NAV -->
+  <nav>
+    <a href="#story">Our Story</a>
+    <a href="#rsvp">RSVP</a>
+    <a href="#details">Details</a>
+    <a href="#registry">Registry</a>
+    <a href="#gallery">Gallery</a>
+    <a href="#faq">FAQ</a>
+  </nav>
+
+  <!-- ── HERO ──────────────────────────────────────────────── -->
+  <section id="hero">
+    <svg class="hero-floral-tl" viewBox="0 0 380 380" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#8a9e85" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 380 Q80 280 120 220 Q160 160 140 80 Q130 40 150 10"/>
+        <path d="M120 220 Q90 200 60 210 Q30 220 10 240"/>
+        <path d="M140 150 Q110 140 85 155 Q65 165 55 185"/>
+        <path d="M148 100 Q130 85 108 95 Q92 104 88 122"/>
+        <ellipse cx="45" cy="225" rx="22" ry="11" transform="rotate(-30 45 225)" opacity="0.6"/>
+        <ellipse cx="68" cy="170" rx="20" ry="9" transform="rotate(-15 68 170)" opacity="0.5"/>
+        <ellipse cx="95" cy="110" rx="18" ry="8" transform="rotate(10 95 110)" opacity="0.5"/>
+        <circle cx="152" cy="10" r="6" opacity="0.4"/>
+        <path d="M152 10 m-8 0 a8 4 0 0 1 16 0" opacity="0.3"/>
+        <path d="M152 10 m0 -8 a4 8 0 0 1 0 16" opacity="0.3"/>
+      </g>
+    </svg>
+    <svg class="hero-floral-br" viewBox="0 0 380 380" xmlns="http://www.w3.org/2000/svg">
+      <g fill="none" stroke="#8a9e85" stroke-width="0.9" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 380 Q80 280 120 220 Q160 160 140 80 Q130 40 150 10"/>
+        <path d="M120 220 Q90 200 60 210 Q30 220 10 240"/>
+        <path d="M140 150 Q110 140 85 155 Q65 165 55 185"/>
+        <path d="M148 100 Q130 85 108 95 Q92 104 88 122"/>
+        <ellipse cx="45" cy="225" rx="22" ry="11" transform="rotate(-30 45 225)" opacity="0.6"/>
+        <ellipse cx="68" cy="170" rx="20" ry="9" transform="rotate(-15 68 170)" opacity="0.5"/>
+        <ellipse cx="95" cy="110" rx="18" ry="8" transform="rotate(10 95 110)" opacity="0.5"/>
+        <circle cx="152" cy="10" r="6" opacity="0.4"/>
+      </g>
+    </svg>
+    <div class="hero-inner">
+      <p class="hero-date-loc reveal">November 27, 2027 &nbsp;·&nbsp; The Club Continental, Jacksonville, Florida</p>
+      <h1 class="hero-names reveal reveal-delay-1">
+        Khalib
+        <span class="hero-ampersand">&amp;</span>
+        Zoë
+      </h1>
+      <div class="hero-divider reveal reveal-delay-2">
+        <span></span>
+        <span class="hero-divider-icon">✦</span>
+        <span></span>
+      </div>
+      <p class="hero-detail reveal reveal-delay-3">Together with their families,<br>invite you to celebrate their marriage.</p>
+    </div>
+    <div class="hero-scroll-hint">
+      <span>Scroll</span>
+      <svg width="12" height="18" viewBox="0 0 12 18" fill="none">
+        <path d="M6 1v14M1 10l5 6 5-6" stroke="currentColor" stroke-width="1" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ── COUNTDOWN ──────────────────────────────────────────── -->
+  <div id="countdown">
+    <h2 class="countdown-heading reveal">Our forever begins in</h2>
+    <div class="countdown-grid reveal reveal-delay-1">
+      <div class="countdown-unit">
+        <span class="countdown-num" id="cd-days">000</span>
+        <span class="countdown-label">Days</span>
+      </div>
+      <div class="countdown-sep" aria-hidden="true">:</div>
+      <div class="countdown-unit">
+        <span class="countdown-num" id="cd-hours">00</span>
+        <span class="countdown-label">Hours</span>
+      </div>
+      <div class="countdown-sep" aria-hidden="true">:</div>
+      <div class="countdown-unit">
+        <span class="countdown-num" id="cd-mins">00</span>
+        <span class="countdown-label">Minutes</span>
+      </div>
+      <div class="countdown-sep" aria-hidden="true">:</div>
+      <div class="countdown-unit">
+        <span class="countdown-num" id="cd-secs">00</span>
+        <span class="countdown-label">Seconds</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── RSVP ───────────────────────────────────────────────── -->
+  <section id="rsvp">
+    <h2 class="section-title reveal">You're Invited</h2>
+    <div class="section-divider reveal reveal-delay-1"></div>
+
+    <div class="rsvp-card reveal reveal-delay-2">
+      <div class="wax-seal" aria-hidden="true"></div>
+
+      <p class="rsvp-body">
+        We would love nothing more than to have you join us as we exchange vows and begin our life together.
+        Your company would mean the world to us on this most special of days.
+      </p>
+
+      <!-- 📅 TODO: Update this RSVP deadline date to whatever you decide -->
+      <p class="rsvp-deadline">Please respond by May 1st, 2027</p>
+
+      <!-- RSVP FORM -->
+      <div id="rsvp-form-wrap">
+        <form class="rsvp-form" id="rsvp-form" novalidate>
+
+          <span class="form-section-label">Your Details</span>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="rsvp-firstname">First Name *</label>
+              <input class="form-input" id="rsvp-firstname" type="text" placeholder="First name" required />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="rsvp-lastname">Last Name *</label>
+              <input class="form-input" id="rsvp-lastname" type="text" placeholder="Last name" required />
+            </div>
+          </div>
+
+          <div class="form-row full" style="margin-bottom:1rem;">
+            <div class="form-group">
+              <label class="form-label" for="rsvp-email">Email Address *</label>
+              <input class="form-input" id="rsvp-email" type="email" placeholder="your@email.com" required />
+            </div>
+          </div>
+
+          <div class="form-divider"></div>
+          <span class="form-section-label">Attendance</span>
+
+          <div class="form-row full" style="margin-bottom:1rem;">
+            <div class="form-group">
+              <label class="form-label">Will you be attending? *</label>
+              <div class="form-radio-group">
+                <label class="form-radio-label">
+                  <input type="radio" name="attending" value="yes" required /> Joyfully accepts
+                </label>
+                <label class="form-radio-label">
+                  <input type="radio" name="attending" value="no" /> Regretfully declines
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-row full" style="margin-bottom:1rem;" id="rsvp-guests-row">
+            <div class="form-group">
+              <label class="form-label" for="rsvp-guests">Number of guests (including yourself)</label>
+              <select class="form-select" id="rsvp-guests">
+                <option value="1">1 — Just me</option>
+                <option value="2">2 — Myself + 1</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-divider"></div>
+          <span class="form-section-label">Meal Preference</span>
+
+          <!--
+            🍽️ TODO — MEAL OPTIONS:
+            Update the <option> values and text below with your confirmed menu choices.
+            These options appear for EACH guest, so keep labels clear and concise.
+            The same list is cloned for every additional guest automatically.
+          -->
+          <div id="meal-selections">
+            <!-- Populated dynamically based on guest count -->
+          </div>
+
+          <div class="form-row full" style="margin-bottom:0;">
+            <div class="form-group">
+              <label class="form-label" for="rsvp-dietary">Dietary Restrictions or Allergies</label>
+              <textarea class="form-textarea" id="rsvp-dietary" placeholder="e.g. nut allergy, gluten-free, vegan…"></textarea>
+            </div>
+          </div>
+
+          <div class="form-divider"></div>
+          <span class="form-section-label">A note for the couple (optional)</span>
+
+          <div class="form-row full" style="margin-bottom:0;">
+            <div class="form-group">
+              <textarea class="form-textarea" id="rsvp-message" placeholder="Share your wishes, a favourite memory, or a song request for the dance floor…" style="min-height:80px;"></textarea>
+            </div>
+          </div>
+
+          <button type="submit" class="rsvp-submit-btn" id="rsvp-submit-btn">
+            Send RSVP
+          </button>
+          <p class="rsvp-form-error" id="rsvp-form-error">Something went wrong — please try again or email us directly.</p>
+        </form>
+      </div>
+
+      <!-- Success message (shown after submission) -->
+      <div class="rsvp-success" id="rsvp-success">
+        <div class="rsvp-success-icon">✦</div>
+        <p class="rsvp-success-title">We'll see you there!</p>
+        <p class="rsvp-success-text">
+          Thank you so much — your RSVP has been received.<br>
+          We cannot wait to celebrate with you.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── LOVE STORY ─────────────────────────────────────────── -->
+  <section id="story">
+    <div class="story-inner">
+      <span class="section-tag reveal">How it began</span>
+      <h2 class="section-title reveal reveal-delay-1">Our Story</h2>
+      <div class="section-divider reveal reveal-delay-2"></div>
+      <!--
+        ✍️ TODO — YOUR STORY (paragraph 1):
+        Replace the placeholder text below with how you two met.
+      -->
+      <p class="story-text reveal reveal-delay-3">
+        [Replace this with how Khalib and Zoë met — where you were, what brought you together,
+        and that first moment that started it all.]
+      </p>
+      <div class="story-image-frame reveal">
+        <div style="width:100%;height:360px;background:linear-gradient(135deg,#c5d4c1 0%,#ede5d8 50%,#d9cfc4 100%);display:flex;align-items:center;justify-content:center;">
+          <span style="font-family:var(--ff-script);font-size:2.2rem;color:rgba(58,44,34,0.22);">📸 Add your photo here</span>
+        </div>
+      </div>
+      <!--
+        💬 TODO — FAVOURITE QUOTE:
+        Replace the quote below with one that is meaningful to you both.
+      -->
+      <p class="story-quote reveal">"In all the world, there is no heart for me like yours."</p>
+      <!--
+        ✍️ TODO — YOUR STORY (paragraph 2):
+        Continue the story here.
+      -->
+      <p class="story-text reveal">
+        [Continue your story here — the journey from that first meeting to the proposal,
+        and what this day means to you both.]
+      </p>
+    </div>
+  </section>
+
+  <!-- ── DETAILS ────────────────────────────────────────────── -->
+  <section id="details">
+    <span class="section-tag reveal">What to know</span>
+    <h2 class="section-title reveal reveal-delay-1">Ceremony &amp; Celebration</h2>
+    <div class="section-divider reveal reveal-delay-2"></div>
+    <div class="details-grid">
+      <div class="detail-card reveal reveal-delay-1">
+        <div class="detail-icon"></div>
+        <h3 class="detail-card-title">Ceremony</h3>
+        <p class="detail-card-text">Saturday, November 27th, 2027<br>Seven-thirty in the evening</p>
+        <p class="detail-card-sub">Doors open at 7:00 pm</p>
+      </div>
+      <div class="detail-card reveal reveal-delay-2">
+        <div class="detail-icon"></div>
+        <h3 class="detail-card-title">Venue</h3>
+        <p class="detail-card-text">The Club Continental<br>Jacksonville, Florida</p>
+        <p class="detail-card-sub"><a href="https://maps.google.com/?q=The+Club+Continental+Jacksonville+Florida" target="_blank" style="color:var(--sage);">View on map ↗</a></p>
+      </div>
+      <div class="detail-card reveal reveal-delay-3">
+        <div class="detail-icon"></div>
+        <h3 class="detail-card-title">Reception</h3>
+        <p class="detail-card-text">Dinner &amp; dancing to follow<br>at The Club Continental</p>
+        <p class="detail-card-sub">Evening dress requested</p>
+      </div>
+      <div class="detail-card reveal reveal-delay-4">
+        <div class="detail-icon"></div>
+        <h3 class="detail-card-title">Accommodation</h3>
+        <p class="detail-card-text">The Club Continental<br>2143 Astor St, Orange Park, FL 32073</p>
+        <p class="detail-card-sub">Quote "Khalib &amp; Zoë" when booking</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       ── REGISTRY ──────────────────────────────────────────────
+       ══════════════════════════════════════════════════════════ -->
+  <section id="registry">
+    <span class="section-tag reveal">With gratitude</span>
+    <h2 class="section-title reveal reveal-delay-1">Our Registry</h2>
+    <div class="section-divider reveal reveal-delay-2"></div>
+
+    <div class="registry-carousel-wrap reveal reveal-delay-3">
+      <p class="registry-note reveal reveal-delay-2">
+        Browse a few of our favorite gifts below. Our honeymoon and future home fund is handled securely through Zola.
+      </p>
+      <div class="registry-carousel" id="registry-carousel">
+        <div class="registry-loading">Loading registry gifts…</div>
+      </div>
+    </div>
+
+    <!-- Arrows + dots -->
+    <div class="carousel-arrows">
+      <button class="carousel-arrow" id="carousel-prev" aria-label="Previous">&#8592;</button>
+      <button class="carousel-arrow" id="carousel-next" aria-label="Next">&#8594;</button>
+    </div>
+    <div class="carousel-dots" id="carousel-dots"></div>
+
+    <!-- CTA -->
+    <div class="registry-cta reveal">
+      <button class="registry-btn-secondary" onclick="openRegistryModal()">View All Gifts</button>
+      <!--
+        🎁 TODO — VIEW FULL REGISTRY LINK:
+        Replace the href below with the URL of your complete registry page
+        (e.g. on Zola, The Knot, Amazon, etc.). The "View All" modal above shows
+        items from this page; the button below links to the full external registry.
+        Example: href="https://www.zola.com/registry/khalibandzoe"
+      -->
+      <a class="registry-btn-primary" href="https://www.zola.com/registry/khalibandzoe" target="_blank" rel="noopener">Visit Zola Registry</a>
+    </div>
+  </section>
+
+  <!-- ── GALLERY ────────────────────────────────────────────── -->
+  <section id="gallery">
+    <span class="section-tag reveal">Moments</span>
+    <h2 class="section-title reveal reveal-delay-1">Our Favourites</h2>
+    <div class="section-divider reveal reveal-delay-2"></div>
+    <div class="gallery-grid reveal">
+      <div class="gallery-item"><div class="gallery-placeholder">✦</div></div>
+      <div class="gallery-item"><div class="gallery-placeholder">✦</div></div>
+      <div class="gallery-item"><div class="gallery-placeholder">✦</div></div>
+      <div class="gallery-item"><div class="gallery-placeholder">✦</div></div>
+      <div class="gallery-item"><div class="gallery-placeholder">✦</div></div>
+    </div>
+    <p style="font-family:var(--ff-serif);font-style:italic;color:var(--brown-md);opacity:0.6;margin-top:1.5rem;font-size:0.9rem;" class="reveal">Photos coming soon</p>
+  </section>
+
+  <!-- ── FAQ ───────────────────────────────────────────────── -->
+  <section id="faq">
+    <span class="section-tag reveal">Need to know</span>
+    <h2 class="section-title reveal reveal-delay-1">Frequently Asked Questions</h2>
+    <div class="section-divider reveal reveal-delay-2"></div>
+    <div class="faq-list reveal reveal-delay-3">
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">Are children welcome at the wedding?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">We love your little ones! The ceremony will be adults-only so everyone can be fully present for our vows. Children are warmly welcome at the reception — we hope to see them on the dance floor.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">What is the dress code?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">We'd love for guests to dress in formal or black-tie attire — floor-length gowns, elegant cocktail dresses, suits, or tuxedos. This is a night to celebrate in style. Please avoid wearing white or ivory out of respect for the bride.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">Can I bring a plus-one?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">Plus-ones are indicated on your invitation. Due to venue capacity, we're only able to accommodate those named on the invitation. Please reach out to us directly if you have questions.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">Will there be parking at the venue?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">Parking is available at The Club Continental. We'll share detailed info closer to the date. We encourage guests to arrange a rideshare if you plan to enjoy the open bar — your safety matters to us!</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">What time should I arrive?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">Please arrive and be seated by 7:00 PM so the ceremony can begin promptly at 7:30 PM. Arriving a little early lets you find your seat, greet fellow guests, and soak in the atmosphere.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">Is the venue accessible?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">We want all guests to feel comfortable and included. The Club Continental has accessibility accommodations available. Please reach out in advance if you have specific needs so we can make arrangements.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">Will there be a gift registry?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">Yes! You can browse our registry right here on this page, or visit our full registry for all gift options. Your presence is truly the greatest gift — we're so grateful for your love and generosity.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">Can I take photos during the ceremony?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">We're hosting an unplugged ceremony — kindly put phones and cameras away so everyone can be fully present. We have a wonderful photographer capturing every detail and will share photos after. During the reception, snap away and tag us!</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">Will dietary needs be accommodated?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region"><p class="faq-answer-inner">Absolutely. Our reception features a dinner service with multiple options. Please note any dietary restrictions or allergies in your RSVP and we'll do our best to ensure everyone is taken care of.</p></div>
+      </div>
+      <div class="faq-item">
+        <button class="faq-question" aria-expanded="false">What if I have another question?<span class="faq-icon" aria-hidden="true">+</span></button>
+        <div class="faq-answer" role="region">
+          <p class="faq-answer-inner">
+            Please don't hesitate to reach out! You can contact us at
+            <!--
+              📧 TODO — CONTACT EMAIL:
+              Replace the placeholder below with your real email address.
+            -->
+            [your email address here] and we'll get back to you as soon as possible.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────── -->
+  <footer>
+    <div class="footer-names">Khalib &amp; Zoë</div>
+    <p class="footer-date">November 27, 2027</p>
+    <div class="footer-divider"></div>
+    <p class="footer-note">With love, we can't wait to celebrate with you.</p>
+  </footer>
+
+</div><!-- /#site -->
+
+<!-- ═══════════════════════════════════════════════════════════
+     REGISTRY MODAL
+═══════════════════════════════════════════════════════════════ -->
+<div id="registry-modal" role="dialog" aria-modal="true" aria-label="Full Registry">
+  <div class="modal-backdrop" onclick="closeRegistryModal()"></div>
+  <div class="modal-panel">
+    <div class="modal-header">
+      <h2 class="modal-title">Our Registry</h2>
+      <button class="modal-close" onclick="closeRegistryModal()" aria-label="Close">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-grid" id="modal-grid">
+        <!-- Populated dynamically from Google Sheets -->
+      </div>
+    </div>
+    <div class="modal-footer">
+      <!--
+        🎁 TODO — MODAL FULL REGISTRY BUTTON:
+        Same as above — replace with your actual registry URL.
+      -->
+      <a class="registry-btn-primary" href="https://www.zola.com/registry/khalibandzoe" target="_blank" rel="noopener">View Zola Registry ↗</a>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+═══════════════════════════════════════════════════════════════ -->
+<script>
+/* ══════════════════════════════════════════════════════════════
+   DYNAMIC REGISTRY DATA — GOOGLE SHEETS + ZOLA
+   ══════════════════════════════════════════════════════════════
+   Google Sheet headers expected:
+   item_url | name | image | price | store | status | buyer | notes
+
+   - Add new items directly to the Google Sheet.
+   - Set status to "available" to show an item.
+   - Set status to "purchased" to hide it from the public list.
+   - Use the image column for a direct image URL.
+   ══════════════════════════════════════════════════════════════ */
 const REGISTRY_SHEET_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vS8pf6f9dveKyKeqLO1Z-cjCfW3mMxyK7Fq05K0-q9cST-qzBQKzQr-APPtT4LiatFGJni7kzgTgPwh/pub?output=csv';
 const ZOLA_REGISTRY_URL  = 'https://www.zola.com/registry/khalibandzoe';
 
